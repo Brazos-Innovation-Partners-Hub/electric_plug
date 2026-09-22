@@ -54,11 +54,27 @@ defmodule ElectricPlug.Config do
 
   def ready? do
     case resolved() do
-      {:disabled, _} -> false
-      config -> Electric.StackSupervisor.stack_ready?(Keyword.fetch!(config, :stack_id))
+      {:disabled, _} ->
+        false
+
+      config ->
+        Electric.StatusMonitor.service_status(Keyword.fetch!(config, :stack_id)) == :active
     end
   rescue
     _ -> false
+  end
+
+  @doc "Blocks until the stack is active, or `{:error, reason}` after `timeout` ms (default 60 s)."
+  def await_ready(timeout \\ 60_000) do
+    case resolved() do
+      {:disabled, reason} ->
+        {:error, reason || :disabled}
+
+      config ->
+        Electric.StatusMonitor.wait_until_active(Keyword.fetch!(config, :stack_id),
+          timeout: timeout
+        )
+    end
   end
 
   # -- resolution ---------------------------------------------------------------------

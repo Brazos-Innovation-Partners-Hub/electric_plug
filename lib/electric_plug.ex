@@ -66,4 +66,8 @@ defmodule ElectricPlug do
   @doc "Whether the embedded stack is up and serving. For readiness checks."
   @spec ready?() :: boolean()
   def ready?, do: Config.ready?()
+
+  @doc "Blocks until the stack is serving, or errors after `timeout` ms. For a test helper."
+  @spec await_ready(pos_integer()) :: :ok | {:error, term()}
+  def await_ready(timeout \\ 60_000), do: Config.await_ready(timeout)
 end
