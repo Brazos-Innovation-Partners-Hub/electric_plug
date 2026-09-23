@@ -41,6 +41,14 @@ defmodule ElectricPlug do
   The Electric stack is started by this library's application when configured, so an
   application adds nothing to its supervision tree. `children/0` returns the same child
   specs for an application that wants to place them itself (set `start: false`).
+
+  ## Several nodes
+
+  `cluster: true` runs one Electric for the stream across connected nodes, any of which
+  answers a shape request — see `ElectricPlug.Cluster`. Production also makes Electric's
+  slot ahead of Electric, failover-capable where the server supports it, and
+  `mix electric_plug.slots` lists, and drops, the slots nothing reads — see
+  `ElectricPlug.Slots`.
   """
 
   alias ElectricPlug.{Config, Shape, Serve}
@@ -61,6 +69,20 @@ defmodule ElectricPlug do
   @spec serve(Plug.Conn.t(), map(), term(), keyword()) :: Plug.Conn.t()
   def serve(conn, params, queryable, opts \\ []) do
     Serve.call(conn, params, Shape.params(queryable, opts))
+  end
+
+  @doc """
+  Whether this node can answer a shape request, and how: `:active` (its own stack serves
+  the stream), `{:forwarding, node}` (a clustered node forwards to the one that does), or
+  `:unavailable`. For readiness checks.
+  """
+  @spec serving() :: :active | {:forwarding, node()} | :unavailable
+  def serving do
+    case ElectricPlug.Cluster.route() do
+      :local -> if ready?(), do: :active, else: :unavailable
+      {:remote, node} -> {:forwarding, node}
+      :none -> :unavailable
+    end
   end
 
   @doc "Whether the embedded stack is up and serving. For readiness checks."
