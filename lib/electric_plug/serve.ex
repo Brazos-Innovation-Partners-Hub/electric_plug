@@ -48,7 +48,7 @@ defmodule ElectricPlug.Serve do
   def local(conn, params, shape_params) do
     api = ElectricPlug.Config.api()
 
-    case Shapes.Api.predefined_shape(api, shape_params) do
+    case predefined(api, shape_params) do
       {:ok, shape_api} ->
         respond(shape_api, conn, params)
 
@@ -62,6 +62,46 @@ defmodule ElectricPlug.Serve do
       {:error, reason} ->
         conn |> json() |> Plug.Conn.send_resp(400, Jason.encode!(%{message: inspect(reason)}))
     end
+  end
+
+  # A migration that adds a column while Electric runs leaves Electric's inspector
+  # describing the table as it was, and it learns otherwise only from a change to a table
+  # a shape already reads — so a shape asking for the new column is refused, no shape is
+  # made, and nothing ever tells it: every request fails until someone deletes the
+  # persisted cache by hand (the patchnotes-web lane, 2026-09-23). Refused for a column or
+  # a where it does not know, the relation is forgotten and the shape asked for once more.
+  defp predefined(api, shape_params) do
+    case Shapes.Api.predefined_shape(api, shape_params) do
+      {:error, {kind, _messages}} = refused when kind in [:columns, :where] ->
+        if forget_relation(api, shape_params),
+          do: Shapes.Api.predefined_shape(api, shape_params),
+          else: refused
+
+      answer ->
+        answer
+    end
+  end
+
+  defp forget_relation(api, shape_params) do
+    schema = shape_params[:namespace] || shape_params[:schema] || "public"
+
+    case Electric.Postgres.Inspector.load_relation_oid(
+           {schema, shape_params[:table]},
+           api.inspector
+         ) do
+      {:ok, {oid, _relation}} -> Electric.Postgres.Inspector.clean(oid, api.inspector) == :ok
+      _other -> false
+    end
+  rescue
+    # Said, not swallowed: a quiet failure here is a shape refused for ever again.
+    error ->
+      require Logger
+
+      Logger.warning(
+        "electric_plug: could not refresh #{inspect(shape_params[:table])}: #{Exception.message(error)}"
+      )
+
+      false
   end
 
   defp forward(%{method: "OPTIONS"} = conn, _node, params, shape_params),

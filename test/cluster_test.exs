@@ -136,6 +136,30 @@ defmodule ElectricPlug.ClusterTest do
       assert [_] = handle.(headers)
     end
 
+    test "a column added while Electric runs is served, not refused until its cache is deleted",
+         %{
+           table: table
+         } do
+      params = %{"offset" => "-1"}
+
+      conn = fn columns ->
+        ElectricPlug.Serve.local(Plug.Test.conn(:get, "/shape"), params,
+          table: table,
+          columns: columns
+        )
+      end
+
+      # Electric reads the table as it is now.
+      assert conn.(["id", "name"]).status == 200
+
+      {:ok, db} = Postgrex.start_link(Keyword.put(@conn, :database, "electric_plug_test"))
+      Postgrex.query!(db, "alter table #{table} add column colour text", [])
+
+      answer = conn.(["id", "name", "colour"])
+      assert answer.status == 200, answer.resp_body
+      assert answer.resp_body =~ "colour"
+    end
+
     test "a long poll waiting when the node's tenure ends is answered at once, not after the poll",
          %{tmp: tmp, table: table} do
       start_supervised!(

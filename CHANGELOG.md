@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 — 2026-09-23
+
+- A column added by a migration while Electric runs is served. Electric's inspector kept
+  describing the table as it was, and learnt otherwise only from a change to a table a
+  shape already read — so a shape asking for the new column was refused, no shape was made,
+  and every request failed until someone deleted the persisted inspector state by hand
+  (reported by the patchnotes-web lane). Refused for a column or a where it does not know,
+  the relation is now forgotten and the shape asked for once more.
+
 ## 0.2.0 — 2026-09-23
 
 Several nodes, and Electric's slot looked after. Proved by EideticUI's Electric cluster
