@@ -1,7 +1,7 @@
 defmodule ElectricPlug.MixProject do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.2.2"
   @source "https://github.com/Brazos-Innovation-Partners-Hub/electric_plug"
 
   def project do
@@ -29,7 +29,7 @@ defmodule ElectricPlug.MixProject do
       # Electric's own Elixir client, carried by us because upstream's stops at Electric 1.6.
       {:electric_client,
        git: "https://github.com/Brazos-Innovation-Partners-Hub/electric_client.git",
-       ref: "929130c3442015f6f6ae92bd677028a0c0dcbf80"},
+       ref: "7590315914d5226080f7e94be6697b3f3e0adec4"},
       # Electric's generated protobuf code must match the protox runtime; the version
       # Hex resolves for Electric alone does not.
       {:protox, "~> 2.0.10"},

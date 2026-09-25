@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2 — 2026-09-25
+
+- A policy comparing an atom attribute to a literal becomes a shape. Ash writes every
+  comparison with its type explicit, `type(^value, type)`, and the Ecto adapter rendered
+  the bound value as it was: an Ash atom or `Ecto.Enum` member (`:space`) raised
+  "unsupported expression", so any page whose policy named a kind, a state or a status
+  answered 500 (Forge's rooms and knowledge). `electric_client` 7590315 dumps such a value
+  through its type — a string-stored atom by its name — and casts it as it is stored:
+  `("kind"::varchar = 'space'::varchar)`.
+
 ## 0.2.1 — 2026-09-23
 
 - A column added by a migration while Electric runs is served. Electric's inspector kept
