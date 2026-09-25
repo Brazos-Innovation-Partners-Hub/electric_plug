@@ -8,8 +8,10 @@ defmodule ElectricPlug.Cluster do
         cluster: true
 
   Every node embeds Electric with the same stream id. Electric's own advisory lock makes
-  one of them active — it holds the replication slot and keeps the shapes — and the others
-  wait for the lock. With `cluster: true`:
+  one of them active — it holds the replication slot and keeps the shapes. The others run
+  no Electric until the lock is free (`ElectricPlug.Cluster.Gate`): Electric waits for its
+  lock inside a statement, and a statement waiting for hours held up every `CREATE INDEX
+  CONCURRENTLY` behind it. With `cluster: true`:
 
     * **Any node answers a shape request.** A node that is not the active one forwards the
       request over the BEAM cluster to the node that is, and relays its answer. A load

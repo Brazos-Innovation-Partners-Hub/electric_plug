@@ -272,7 +272,10 @@ defmodule ElectricPlug.Slots do
   end
 
   # Electric's connection options, said Postgrex's way.
-  defp postgrex_opts(opts) do
+  @doc false
+  # Electric's connection options as Postgrex's: one connection, stopped rather than
+  # retried when it cannot be made.
+  def postgrex_opts(opts) do
     ssl =
       case Keyword.get(opts, :sslmode) do
         mode when mode in [:require, :verify_ca, :verify_full] -> [ssl: true]

@@ -41,9 +41,30 @@ defmodule ElectricPlug.Config do
         stack = {Electric.StackSupervisor, Electric.Application.configuration(config)}
 
         if ElectricPlug.Cluster.enabled?() do
-          # The tenure first, the stack after it: when a tenure ends the tenure stops, and
-          # `rest_for_one` takes the stack down with it and starts both again — the tenure
-          # emptying the storage before the stack opens it.
+          # A tenure is the tenure first, the stack after it: when a tenure ends the tenure
+          # stops, and `rest_for_one` takes the stack down with it and starts both again —
+          # the tenure emptying the storage before the stack opens it. The gate starts a
+          # tenure only when this node can take the lock (`ElectricPlug.Cluster.Gate`).
+          tenure = %{
+            id: ElectricPlug.Cluster.Tenure,
+            type: :supervisor,
+            restart: :temporary,
+            start:
+              {Supervisor, :start_link,
+               [
+                 [{ElectricPlug.Cluster, config}, stack],
+                 [strategy: :rest_for_one, max_restarts: 10, max_seconds: 60]
+               ]}
+          }
+
+          gate =
+            [
+              stack_id: Keyword.fetch!(config, :stack_id),
+              slot: slot_name(config),
+              connection: Keyword.fetch!(config, :replication_connection_opts),
+              tenure: tenure
+            ] ++ Application.get_env(:electric_plug, :gate, [])
+
           [
             ElectricPlug.SlotKeeper,
             %{
@@ -52,8 +73,12 @@ defmodule ElectricPlug.Config do
               start:
                 {Supervisor, :start_link,
                  [
-                   [{ElectricPlug.Cluster, config}, stack],
-                   [strategy: :rest_for_one, max_restarts: 10, max_seconds: 60]
+                   [
+                     {DynamicSupervisor,
+                      name: ElectricPlug.Cluster.Tenures, strategy: :one_for_one},
+                     {ElectricPlug.Cluster.Gate, gate}
+                   ],
+                   [strategy: :rest_for_one]
                  ]}
             }
           ]
@@ -61,6 +86,12 @@ defmodule ElectricPlug.Config do
           [ElectricPlug.SlotKeeper, stack]
         end
     end
+  end
+
+  # The replication slot's name, which is also the name of Electric's lock.
+  defp slot_name(config) do
+    stream = Keyword.get(config, :replication_stream_id, "default")
+    Keyword.get(config, :slot_name, ElectricPlug.Slots.name(stream))
   end
 
   @doc "The resolved Electric configuration, or `[]` when disabled."
@@ -100,10 +131,33 @@ defmodule ElectricPlug.Config do
         {:error, reason || :disabled}
 
       config ->
-        Electric.StatusMonitor.wait_until_active(Keyword.fetch!(config, :stack_id),
-          timeout: timeout
-        )
+        stack_id = Keyword.fetch!(config, :stack_id)
+        await_active(stack_id, System.monotonic_time(:millisecond) + timeout)
     end
+  end
+
+  # A clustered node that is not serving runs no stack until it can take the lock
+  # (`ElectricPlug.Cluster.Gate`): there is nothing to wait on until then, so this asks
+  # again until there is, or the time is up.
+  defp await_active(stack_id, deadline) do
+    left = deadline - System.monotonic_time(:millisecond)
+
+    if left <= 0 do
+      {:error, :timeout}
+    else
+      try do
+        Electric.StatusMonitor.wait_until_active(stack_id, timeout: left)
+      rescue
+        _ -> retry_active(stack_id, deadline)
+      catch
+        :exit, _ -> retry_active(stack_id, deadline)
+      end
+    end
+  end
+
+  defp retry_active(stack_id, deadline) do
+    Process.sleep(min(200, max(deadline - System.monotonic_time(:millisecond), 0)))
+    await_active(stack_id, deadline)
   end
 
   # -- resolution ---------------------------------------------------------------------

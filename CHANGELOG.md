@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.3 — 2026-09-25
+
+- A clustered node that is not serving no longer waits inside Postgres. Electric takes its
+  lock with a blocking `SELECT pg_advisory_lock(hashtext(slot))` on its replication
+  connection, so every other node sat in that statement for as long as the active one
+  served, and a statement in progress holds a snapshot: `CREATE INDEX CONCURRENTLY` waits
+  for every one older than it ("waiting for old snapshots"), and a Forge deploy's
+  migration never finished until the two waiting sessions were terminated by hand. A
+  gate (`ElectricPlug.Cluster.Gate`) now starts a node's Electric only when the lock is
+  free, asking with one instant query on a connection that holds nothing; a node whose
+  Electric then waits behind another's lock (two raced) stops it after five seconds and
+  asks again. A holder whose slot nobody reads for thirty seconds is stuck, and the node
+  waits for it so that Electric's lock breaker can end it. A handover now also waits for
+  the next ask (half a second) and for Electric to start. `await_ready/1` waits for a
+  tenure that has not started yet rather than failing. Proven against Postgres (an index
+  is made while another node holds the lock, and is held up by a session waiting in the
+  old way) and by EideticUI's cluster drill.
+
 ## 0.2.2 — 2026-09-25
 
 - A policy comparing an atom attribute to a literal becomes a shape. Ash writes every
