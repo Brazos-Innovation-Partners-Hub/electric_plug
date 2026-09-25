@@ -64,11 +64,17 @@ defmodule ElectricPlug do
   @doc """
   Serves the shape log for `queryable` — a schema module or an `Ecto.Query` — to `conn`.
 
-  Options: `replica: :default | :full`, `columns: [String.t()]`.
+  Options: `replica: :default | :full`, `columns: [String.t()]`, and `interrupt:` — a
+  message this process may be sent while a live request waits (a long poll parks for up
+  to twenty seconds). When it arrives the request is answered at once, 403, instead of
+  streaming on: how a host ends the access of an actor being ejected rather than waiting
+  for their next request to be refused. The caller arranges for the message to come (a
+  PubSub subscription, say); nothing is subscribed here.
   """
   @spec serve(Plug.Conn.t(), map(), term(), keyword()) :: Plug.Conn.t()
   def serve(conn, params, queryable, opts \\ []) do
-    Serve.call(conn, params, Shape.params(queryable, opts))
+    {interrupt, opts} = Keyword.pop(opts, :interrupt)
+    Serve.call(conn, params, Shape.params(queryable, opts), interrupt)
   end
 
   @doc """

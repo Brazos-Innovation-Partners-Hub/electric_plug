@@ -13,38 +13,57 @@ defmodule ElectricPlug.Remote do
   # serves now.
 
   @doc false
-  def serve(method, params, shape_params, req_headers) do
-    case Process.whereis(ElectricPlug.Cluster) do
-      nil -> capture(method, params, shape_params, req_headers)
-      tenure -> watched(tenure, method, params, shape_params, req_headers)
+  def serve(method, params, shape_params, req_headers, interrupt \\ nil) do
+    serve = fn -> capture(method, params, shape_params, req_headers) end
+
+    case {Process.whereis(ElectricPlug.Cluster), interrupt} do
+      {nil, nil} -> serve.()
+      {tenure, interrupt} -> watch(serve, tenure, interrupt)
     end
   end
 
-  defp watched(tenure, method, params, shape_params, req_headers) do
+  # A request answered by `serve`, run in a process of its own and watched: against the
+  # node's tenure (`nil`: none), and for `interrupt`, a message this process may be sent
+  # (`nil`: none). Either answers at once and ends the request's process.
+  @doc false
+  def watch(serve, tenure, interrupt) do
     parent = self()
     tag = make_ref()
-    tenure_ref = Process.monitor(tenure)
+    tenure_ref = tenure && Process.monitor(tenure)
 
-    {pid, ref} =
-      spawn_monitor(fn ->
-        send(parent, {tag, capture(method, params, shape_params, req_headers)})
-      end)
+    {pid, ref} = spawn_monitor(fn -> send(parent, {tag, serve.()}) end)
 
     receive do
       {^tag, result} ->
         Process.demonitor(ref, [:flush])
-        Process.demonitor(tenure_ref, [:flush])
+        if tenure_ref, do: Process.demonitor(tenure_ref, [:flush])
         result
 
-      {:DOWN, ^tenure_ref, :process, _, _} ->
+      {:DOWN, ^tenure_ref, :process, _, _} when tenure_ref != nil ->
         Process.exit(pid, :kill)
         Process.demonitor(ref, [:flush])
         unavailable("the node serving this shape stopped serving the stream")
 
       {:DOWN, ^ref, :process, _, reason} ->
-        Process.demonitor(tenure_ref, [:flush])
+        if tenure_ref, do: Process.demonitor(tenure_ref, [:flush])
         unavailable("serving the shape failed: #{inspect(reason)}")
+
+      message when interrupt != nil and message == interrupt ->
+        Process.exit(pid, :kill)
+        Process.demonitor(ref, [:flush])
+        if tenure_ref, do: Process.demonitor(tenure_ref, [:flush])
+        ended()
     end
+  end
+
+  # Access to the shape has ended while a long poll waited on it: refused, and not to be
+  # asked again as if nothing had happened.
+  defp ended do
+    {403,
+     [
+       {"content-type", "application/json; charset=utf-8"},
+       {"cache-control", "no-store"}
+     ], Jason.encode!(%{message: "access to this shape has ended"})}
   end
 
   defp unavailable(message) do

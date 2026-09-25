@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.4 — 2026-09-25
+
+- A long poll can be ended while it waits. `ElectricPlug.serve/4` takes `interrupt:`, a
+  message the request's process may be sent; a live request given one is served in a
+  process of its own, as cluster mode serves one, and answered at once, 403 "access to
+  this shape has ended", when the message comes. How a host ends an ejected actor's
+  access rather than letting their long poll stream for up to twenty more seconds
+  (EideticUI's `eject/2`). A request that is not live, or not given one, is served as
+  before. A forwarded request is watched the same way on the node that forwards it.
+
 ## 0.2.3 — 2026-09-25
 
 - A clustered node that is not serving no longer waits inside Postgres. Electric takes its

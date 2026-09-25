@@ -1,7 +1,7 @@
 defmodule ElectricPlug.MixProject do
   use Mix.Project
 
-  @version "0.2.3"
+  @version "0.2.4"
   @source "https://github.com/Brazos-Innovation-Partners-Hub/electric_plug"
 
   def project do

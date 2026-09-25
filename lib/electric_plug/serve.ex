@@ -14,21 +14,31 @@ defmodule ElectricPlug.Serve do
   @hop_ms 30_000
 
   @doc false
-  def call(conn, params, shape_params) do
+  def call(conn, params, shape_params, interrupt \\ nil) do
+    # Only a long poll waits, so only a long poll can be interrupted.
+    interrupt = if live?(params), do: interrupt
+
     case ElectricPlug.Cluster.route() do
       :local ->
         # In a cluster the active node serves its own requests the way it serves a
-        # forwarded one: watched against its tenure (`ElectricPlug.Remote`).
-        if ElectricPlug.Cluster.enabled?() and conn.method != "OPTIONS",
+        # forwarded one: watched against its tenure (`ElectricPlug.Remote`); and so does
+        # any node a request that may be interrupted.
+        if conn.method != "OPTIONS" and (ElectricPlug.Cluster.enabled?() or interrupt != nil),
           do:
             relay(
               conn,
-              ElectricPlug.Remote.serve(conn.method, params, shape_params, headers(conn))
+              ElectricPlug.Remote.serve(
+                conn.method,
+                params,
+                shape_params,
+                headers(conn),
+                interrupt
+              )
             ),
           else: local(conn, params, shape_params)
 
       {:remote, node} ->
-        forward(conn, node, params, shape_params)
+        forward(conn, node, params, shape_params, interrupt)
 
       :none ->
         unavailable(conn, "no node is serving shapes yet")
@@ -104,14 +114,15 @@ defmodule ElectricPlug.Serve do
       false
   end
 
-  defp forward(%{method: "OPTIONS"} = conn, _node, params, shape_params),
+  defp live?(params), do: Map.get(params, "live") in ["true", true]
+
+  defp forward(%{method: "OPTIONS"} = conn, _node, params, shape_params, _interrupt),
     do: local(conn, params, shape_params)
 
-  defp forward(conn, node, params, shape_params) do
+  defp forward(conn, node, params, shape_params, interrupt) do
     timeout = Keyword.get(ElectricPlug.Config.electric(), :long_poll_timeout, 20_000) + @hop_ms
 
-    relay(
-      conn,
+    hop = fn ->
       :erpc.call(
         node,
         ElectricPlug.Remote,
@@ -119,7 +130,9 @@ defmodule ElectricPlug.Serve do
         [conn.method, params, shape_params, headers(conn)],
         timeout
       )
-    )
+    end
+
+    relay(conn, if(interrupt, do: ElectricPlug.Remote.watch(hop, nil, interrupt), else: hop.()))
   rescue
     # The serving node went away mid-request, or is not a node any more: the client's
     # retry lands on whoever serves next.
