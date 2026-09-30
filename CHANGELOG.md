@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5 — 2026-09-30
+
+- `mode: :forward`: a node that runs no Electric and answers every shape request by sending
+  it to the node of its cluster serving `replication_stream_id`, and 503 with `retry-after`
+  while none is. It needs no connection, slot or storage, and counts as clustered without
+  `cluster: true`. For nodes that serve an application's requests but must not read its
+  stream: Forge's web tier on VCCP, whose machines have no direct path to the primary. A
+  disabled node had answered 500, and a clustered one that ran no Electric looked for the
+  node serving `"default"` rather than its stream, and never forwarded.
+
 ## 0.2.4 — 2026-09-25
 
 - A long poll can be ended while it waits. `ElectricPlug.serve/4` takes `interrupt:`, a

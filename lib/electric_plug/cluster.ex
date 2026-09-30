@@ -39,7 +39,10 @@ defmodule ElectricPlug.Cluster do
 
   @doc "Whether this application runs Electric as one of several nodes."
   @spec enabled?() :: boolean()
-  def enabled?, do: Application.get_env(:electric_plug, :cluster, false) == true
+  def enabled?,
+    do:
+      Application.get_env(:electric_plug, :cluster, false) == true or
+        ElectricPlug.Config.mode() == :forward
 
   @doc "The directory a clustered node's Electric keeps its shapes in, under `storage_dir`."
   @spec tenure_dir(String.t()) :: String.t()
@@ -75,9 +78,8 @@ defmodule ElectricPlug.Cluster do
     end
   end
 
-  defp global_name do
-    {__MODULE__, Keyword.get(ElectricPlug.Config.electric(), :replication_stream_id, "default")}
-  end
+  # By the stream's id, which a forwarding node, running no Electric, knows too.
+  defp global_name, do: {__MODULE__, ElectricPlug.Config.stream_id()}
 
   # -- the tenure ------------------------------------------------------------------------
 
