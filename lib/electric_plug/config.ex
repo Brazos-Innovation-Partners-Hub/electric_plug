@@ -27,7 +27,20 @@ defmodule ElectricPlug.Config do
   def mode do
     case resolved() do
       {:disabled, _reason} -> :disabled
+      {:forward, _stream} -> :forward
       _ -> :embedded
+    end
+  end
+
+  @doc """
+  The stream this node serves, or in `:forward` mode the one whose serving node it forwards
+  to: `replication_stream_id`, `"default"` when none is configured.
+  """
+  def stream_id do
+    case resolved() do
+      {:forward, stream} -> stream
+      {:disabled, _reason} -> "default"
+      config -> Keyword.get(config, :replication_stream_id, "default")
     end
   end
 
@@ -35,6 +48,10 @@ defmodule ElectricPlug.Config do
     case resolved() do
       {:disabled, reason} ->
         if reason, do: Logger.info("electric_plug: not starting Electric: #{reason}")
+        []
+
+      {:forward, stream} ->
+        Logger.info("electric_plug: forwarding shape requests to the node serving #{stream}")
         []
 
       config ->
@@ -98,6 +115,7 @@ defmodule ElectricPlug.Config do
   def electric do
     case resolved() do
       {:disabled, _} -> []
+      {:forward, _} -> []
       config -> config
     end
   end
@@ -107,6 +125,9 @@ defmodule ElectricPlug.Config do
       {:disabled, reason} ->
         raise "electric_plug is disabled#{if reason, do: ": " <> reason, else: ""}; nothing can be served."
 
+      {:forward, stream} ->
+        raise "electric_plug forwards shape requests to the node serving #{stream}; it runs no Electric of its own."
+
       config ->
         config |> Electric.Application.api_plug_opts() |> Keyword.fetch!(:api)
     end
@@ -115,6 +136,9 @@ defmodule ElectricPlug.Config do
   def ready? do
     case resolved() do
       {:disabled, _} ->
+        false
+
+      {:forward, _} ->
         false
 
       config ->
@@ -129,6 +153,9 @@ defmodule ElectricPlug.Config do
     case resolved() do
       {:disabled, reason} ->
         {:error, reason || :disabled}
+
+      {:forward, _stream} ->
+        {:error, :forwarding}
 
       config ->
         stack_id = Keyword.fetch!(config, :stack_id)
@@ -169,6 +196,12 @@ defmodule ElectricPlug.Config do
       :disabled ->
         {:disabled, nil}
 
+      # A node of the application that serves no stream itself: every shape request it gets
+      # goes, over the cluster, to the node serving `replication_stream_id`
+      # (`ElectricPlug.Cluster`). It needs no connection, no slot and no storage.
+      :forward ->
+        {:forward, Keyword.get(opts, :replication_stream_id, "default")}
+
       :embedded ->
         case connection(opts) do
           {:ok, connection_opts} ->
@@ -186,7 +219,7 @@ defmodule ElectricPlug.Config do
 
       other ->
         raise ArgumentError,
-              "electric_plug: mode must be :embedded or :disabled, got #{inspect(other)}"
+              "electric_plug: mode must be :embedded, :forward or :disabled, got #{inspect(other)}"
     end
   end
 

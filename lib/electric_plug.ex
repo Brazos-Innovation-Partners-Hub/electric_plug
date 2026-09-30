@@ -19,7 +19,8 @@ defmodule ElectricPlug do
 
   `repo`'s connection configuration becomes Electric's replication connection. Instead of
   a repo you may give `connection_opts:`. `mode: :disabled` starts nothing, for a test
-  that needs no database.
+  that needs no database. `mode: :forward` starts nothing either: that node answers every
+  shape request by sending it to the node of its cluster that serves `replication_stream_id`.
 
   Per environment, without being asked: in `:test` a stack id, a temporary replication
   slot, in-memory shape logs and a fresh `storage_dir` per run — the shape status
@@ -45,9 +46,11 @@ defmodule ElectricPlug do
   ## Several nodes
 
   `cluster: true` runs one Electric for the stream across connected nodes, any of which
-  answers a shape request — see `ElectricPlug.Cluster`. Production also makes Electric's
-  slot ahead of Electric, failover-capable where the server supports it, and
-  `mix electric_plug.slots` lists, and drops, the slots nothing reads — see
+  answers a shape request — see `ElectricPlug.Cluster`. A node with `mode: :forward` joins
+  in without running Electric, for nodes that serve requests but must not read the stream
+  themselves (no direct connection to the primary, no storage of their own). Production also
+  makes Electric's slot ahead of Electric, failover-capable where the server supports it,
+  and `mix electric_plug.slots` lists, and drops, the slots nothing reads — see
   `ElectricPlug.Slots`.
   """
 

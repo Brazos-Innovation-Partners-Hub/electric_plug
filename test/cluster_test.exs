@@ -19,7 +19,15 @@ defmodule ElectricPlug.ClusterTest do
     on_exit(fn ->
       Config.reset()
 
-      for key <- [:env, :mode, :connection_opts, :cluster, :storage_dir, :repo],
+      for key <- [
+            :env,
+            :mode,
+            :connection_opts,
+            :cluster,
+            :storage_dir,
+            :repo,
+            :replication_stream_id
+          ],
           do: Application.delete_env(:electric_plug, key)
     end)
 
@@ -75,6 +83,46 @@ defmodule ElectricPlug.ClusterTest do
     assert conn.status == 503
     assert Plug.Conn.get_resp_header(conn, "retry-after") == ["1"]
     assert ElectricPlug.serving() == :unavailable
+  end
+
+  describe "a forwarding node" do
+    # Forge's web tier serves /app for every user from machines that must not read the stream:
+    # a disabled node answered 500, and even clustered it looked for the node serving
+    # "default", found none and answered 503, never forwarding (Forge issue 01a0f3b5).
+    setup do
+      Application.put_env(:electric_plug, :mode, :forward)
+      Application.put_env(:electric_plug, :replication_stream_id, "forward_test")
+      :ok
+    end
+
+    test "starts nothing, needs no connection, and counts as clustered" do
+      assert Config.mode() == :forward
+      assert Config.children() == []
+      assert Config.electric() == []
+      refute Config.ready?()
+      assert Config.await_ready(10) == {:error, :forwarding}
+      assert Cluster.enabled?()
+    end
+
+    test "looks for the node serving its stream, by the stream's id" do
+      assert Cluster.active_node() == nil
+      :yes = :global.register_name({Cluster, "forward_test"}, self())
+      on_exit(fn -> :global.unregister_name({Cluster, "forward_test"}) end)
+
+      assert Cluster.active_node() == node()
+      # Never itself: a forwarding node serves nothing of its own.
+      assert Cluster.route() == :none
+    end
+
+    test "with no node serving its stream, answers 503 and when to ask again" do
+      conn =
+        Plug.Test.conn(:get, "/shape?offset=-1")
+        |> ElectricPlug.Serve.call(%{"offset" => "-1"}, table: "t")
+
+      assert conn.status == 503
+      assert Plug.Conn.get_resp_header(conn, "retry-after") == ["1"]
+      assert ElectricPlug.serving() == :unavailable
+    end
   end
 
   describe "against Postgres" do
