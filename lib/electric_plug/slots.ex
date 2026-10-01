@@ -284,6 +284,15 @@ defmodule ElectricPlug.Slots do
 
     opts
     |> Keyword.take([:hostname, :port, :database, :username, :password, :socket_options])
+    |> then(fn opts ->
+      case Keyword.fetch(opts, :password) do
+        {:ok, password} when is_function(password, 0) ->
+          Keyword.put(opts, :password, password.())
+
+        _ ->
+          opts
+      end
+    end)
     |> Keyword.merge(ssl)
     |> Keyword.put(:pool_size, 1)
     |> Keyword.put(:backoff_type, :stop)

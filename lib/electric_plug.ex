@@ -18,7 +18,8 @@ defmodule ElectricPlug do
         db_pool_size: 4
 
   `repo`'s connection configuration becomes Electric's replication connection. Instead of
-  a repo you may give `connection_opts:`. `mode: :disabled` starts nothing, for a test
+  a repo you may give `connection_opts:`; it accepts the output of
+  `Electric.Config.parse_postgresql_uri!/1` as well. `mode: :disabled` starts nothing, for a test
   that needs no database. `mode: :forward` starts nothing either: that node answers every
   shape request by sending it to the node of its cluster that serves `replication_stream_id`.
 
