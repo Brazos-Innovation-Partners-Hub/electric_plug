@@ -85,6 +85,41 @@ defmodule ElectricPlug.ClusterTest do
     assert ElectricPlug.serving() == :unavailable
   end
 
+  test "a local shape whose lookup cannot reach Postgres returns 503 with a retryable message" do
+    Application.put_env(:electric_plug, :env, :prod)
+    Application.put_env(:electric_plug, :connection_opts, @conn)
+    Config.reset()
+
+    message = "Cannot connect to the database to verify the shape. Please try again later."
+
+    conn =
+      ElectricPlug.Serve.local(
+        Plug.Test.conn(:get, "/shape"),
+        %{"offset" => "-1"},
+        [table: "t"],
+        fn _api, _shape -> {:error, {:connection_not_available, [message]}} end
+      )
+
+    assert conn.status == 503
+    assert Plug.Conn.get_resp_header(conn, "retry-after") == ["1"]
+    assert Jason.decode!(conn.resp_body) == %{"message" => message}
+    refute conn.resp_body =~ "connection_not_available"
+
+    invalid =
+      ElectricPlug.Serve.local(
+        Plug.Test.conn(:get, "/shape"),
+        %{"offset" => "-1"},
+        [table: "t"],
+        fn _api, _shape -> {:error, {:table, ["does not exist"]}} end
+      )
+
+    assert invalid.status == 400
+
+    assert Jason.decode!(invalid.resp_body) == %{
+             "message" => inspect({:table, ["does not exist"]})
+           }
+  end
+
   describe "a forwarding node" do
     # Forge's web tier serves /app for every user from machines that must not read the stream:
     # a disabled node answered 500, and even clustered it looked for the node serving
