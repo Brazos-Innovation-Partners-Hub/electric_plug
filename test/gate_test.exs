@@ -9,7 +9,12 @@ defmodule ElectricPlug.GateTest do
 
   alias ElectricPlug.Cluster.Gate
 
-  @conn [hostname: "localhost", port: 5432, username: "postgres", password: "postgres"]
+  @conn [
+    hostname: System.get_env("PGHOST", "localhost"),
+    port: String.to_integer(System.get_env("PGPORT", "5432")),
+    username: "postgres",
+    password: "postgres"
+  ]
   @times [waited_ms: 0, idle_ms: 0, race_ms: 5_000, idle_slot_ms: 30_000]
 
   describe "what the gate does" do

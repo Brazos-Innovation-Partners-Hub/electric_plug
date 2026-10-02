@@ -15,8 +15,8 @@ defmodule ElectricPlug.SlotsTest do
   alias ElectricPlug.Slots
 
   @conn [
-    hostname: "localhost",
-    port: 5432,
+    hostname: System.get_env("PGHOST", "localhost"),
+    port: String.to_integer(System.get_env("PGPORT", "5432")),
     username: "postgres",
     password: "postgres",
     database: "postgres"
@@ -26,6 +26,19 @@ defmodule ElectricPlug.SlotsTest do
     name = "electric_slot_plug_test_#{System.unique_integer([:positive])}"
     on_exit(fn -> Slots.drop(@conn, name) end)
     %{name: name}
+  end
+
+  test "Postgrex options unwrap a function password and preserve a static password" do
+    opts = [
+      password: fn -> "from a function" end,
+      username: "user",
+      hostname: "localhost"
+    ]
+
+    assert Keyword.get(Slots.postgrex_opts(opts), :password) == "from a function"
+
+    static_opts = Keyword.put(opts, :password, "static password")
+    assert Keyword.get(Slots.postgrex_opts(static_opts), :password) == "static password"
   end
 
   test "made ahead of Electric once, reused after, failover-capable on 17 and later", %{
