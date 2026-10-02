@@ -56,9 +56,14 @@ defmodule ElectricPlug.Serve do
 
   @doc false
   def local(conn, params, shape_params) do
+    local(conn, params, shape_params, &predefined/2)
+  end
+
+  @doc false
+  def local(conn, params, shape_params, predefined_fun) do
     api = ElectricPlug.Config.api()
 
-    case predefined(api, shape_params) do
+    case predefined_fun.(api, shape_params) do
       {:ok, shape_api} ->
         respond(shape_api, conn, params)
 
@@ -69,10 +74,42 @@ defmodule ElectricPlug.Serve do
         |> json()
         |> Plug.Conn.send_resp(status, IO.iodata_to_binary(Enum.to_list(response.body || [])))
 
+      {:error, {kind, messages}} when is_atom(kind) ->
+        if database_unavailable?(kind) do
+          unavailable(conn, plain_message(messages))
+        else
+          conn
+          |> json()
+          |> Plug.Conn.send_resp(400, Jason.encode!(%{message: inspect({kind, messages})}))
+        end
+
       {:error, reason} ->
         conn |> json() |> Plug.Conn.send_resp(400, Jason.encode!(%{message: inspect(reason)}))
     end
   end
+
+  defp database_unavailable?(:connection_not_available), do: true
+
+  defp database_unavailable?(kind) do
+    name = Atom.to_string(kind)
+
+    unavailable? =
+      String.contains?(name, "unavailable") or String.contains?(name, "not_available")
+
+    database? = Enum.any?(["connection", "database", "inspector"], &String.contains?(name, &1))
+
+    unavailable? and database?
+  end
+
+  defp plain_message(messages) when is_list(messages) do
+    case Enum.map_join(messages, " ", &to_string/1) do
+      "" -> "the database is temporarily unavailable"
+      message -> message
+    end
+  end
+
+  defp plain_message(message) when is_binary(message), do: message
+  defp plain_message(_message), do: "the database is temporarily unavailable"
 
   # A migration that adds a column while Electric runs leaves Electric's inspector
   # describing the table as it was, and it learns otherwise only from a change to a table
