@@ -1,6 +1,10 @@
 defmodule ElectricPlug.MixProject do
   use Mix.Project
 
+  # VStack by path: its design/library-standard branch, checked out beside this repository,
+  # until the single push pins it by git again.
+  @vstack "../vstack/packages"
+
   @version "0.2.5"
   @source "https://github.com/Brazos-Innovation-Partners-Hub/electric_plug"
 
@@ -25,6 +29,8 @@ defmodule ElectricPlug.MixProject do
 
   defp deps do
     [
+      {:vstack_shared, path: "#{@vstack}/vstack_shared", override: true},
+      {:vstack_dev, path: "#{@vstack}/vstack_dev", only: [:dev, :test], runtime: false},
       {:electric, "~> 1.8"},
       # Electric's own Elixir client, carried by us because upstream's stops at Electric 1.6.
       {:electric_client,
