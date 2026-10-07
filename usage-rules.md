@@ -8,6 +8,10 @@ Written by hand: what the design cannot say.
   refuses. With Ash, build it with `Ash.Query.for_read(resource, action, %{}, actor: actor)`
   and `Ash.data_layer_query/1`, and declare that read in the serving module's effects
   (`calls Resource, :read, class: :read`): the rules this library ships ask for it.
+- **The two rules are always checked.** `serves_read` (awaited below) is published by a
+  library that serves the reads its own declarations name, EideticUI; where no such library is
+  loaded there are none of those facts (`absent: :none`), so a module serving shapes must name
+  its read in its effects, or break the rule.
 - **`columns:` narrows; nothing widens.** A column the query does not select, a `where:` or a
   `params:` beside the query raises `ArgumentError` before anything is served. Ask
   `ElectricPlug.Shape.params/2` what a query will be served as.

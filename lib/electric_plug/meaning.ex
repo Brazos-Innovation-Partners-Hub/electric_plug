@@ -72,11 +72,14 @@ if Code.ensure_loaded?(VStack.Rules) do
 
       # A library that serves reads its own declarations name (EideticUI's shape controller
       # serves each live projection's read) says so; its module then names its reads that way.
+      # Where no such library is loaded there are none of these facts, and the rules reading
+      # them are still checked: a host serving shapes must then name its read in its effects.
       awaits :serves_read,
         from:
           "EideticUI's published facts (a library that serves reads its own declarations name)",
         description:
-          "serves_read(m, read): module m serves read, which its library's declarations name."
+          "serves_read(m, read): module m serves read, which its library's declarations name.",
+        absent: :none
 
       define served_read(m, read) do
         description "Module m, which serves shape logs, serves read as its library's own declarations name it: a library that serves the reads its hosts declare (`serves_read`)."
