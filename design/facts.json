@@ -230,16 +230,28 @@
         "ElectricPlug"
       ],
       [
+        "ElectricPlug.Config.Connection"
+      ],
+      [
         "ElectricPlug.Design#library.ElectricPlug"
       ],
       [
+        "ElectricPlug.Design#library.ElectricPlug.Config.Connection"
+      ],
+      [
         "ElectricPlug.Design#library.ElectricPlug.Node"
+      ],
+      [
+        "ElectricPlug.Design#library.ElectricPlug.Revocation"
       ],
       [
         "ElectricPlug.Design#library.ElectricPlug.Shape"
       ],
       [
         "ElectricPlug.Node"
+      ],
+      [
+        "ElectricPlug.Revocation"
       ],
       [
         "ElectricPlug.Shape"
@@ -256,6 +268,9 @@
         "ElectricPlug.Examples#examples.a_node_with_no_database_says_why"
       ],
       [
+        "ElectricPlug.Examples#examples.a_revoked_reader_gets_no_held_rows"
+      ],
+      [
         "ElectricPlug.Examples#examples.a_schema_is_served_as_its_table"
       ],
       [
@@ -266,6 +281,21 @@
       ],
       [
         "ElectricPlug.Examples#examples.columns_never_widen_the_shape"
+      ],
+      [
+        "ElectricPlug.Examples#examples.explicit_connection_options_win"
+      ],
+      [
+        "ElectricPlug.Examples#examples.revoking_a_share_cuts_the_streams"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_calling_changes_are_named"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_repository_is_used_when_nothing_else_is_given"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_source_is_told_at_boot"
       ]
     ],
     "covers": [
@@ -282,6 +312,10 @@
         "ElectricPlug.Node"
       ],
       [
+        "ElectricPlug.Examples#examples.a_revoked_reader_gets_no_held_rows",
+        "ElectricPlug.Revocation"
+      ],
+      [
         "ElectricPlug.Examples#examples.a_schema_is_served_as_its_table",
         "ElectricPlug.Shape"
       ],
@@ -296,6 +330,26 @@
       [
         "ElectricPlug.Examples#examples.columns_never_widen_the_shape",
         "ElectricPlug.Shape"
+      ],
+      [
+        "ElectricPlug.Examples#examples.explicit_connection_options_win",
+        "ElectricPlug.Config.Connection"
+      ],
+      [
+        "ElectricPlug.Examples#examples.revoking_a_share_cuts_the_streams",
+        "ElectricPlug.Revocation"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_calling_changes_are_named",
+        "ElectricPlug.Revocation"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_repository_is_used_when_nothing_else_is_given",
+        "ElectricPlug.Config.Connection"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_source_is_told_at_boot",
+        "ElectricPlug.Config.Connection"
       ]
     ],
     "declares_rule": [
@@ -333,7 +387,15 @@
       ],
       [
         "ElectricPlug.Design",
+        "ElectricPlug.Config.Connection"
+      ],
+      [
+        "ElectricPlug.Design",
         "ElectricPlug.Node"
+      ],
+      [
+        "ElectricPlug.Design",
+        "ElectricPlug.Revocation"
       ],
       [
         "ElectricPlug.Design",
@@ -391,6 +453,9 @@
         "ElectricPlug.Examples#examples.a_node_with_no_database_says_why"
       ],
       [
+        "ElectricPlug.Examples#examples.a_revoked_reader_gets_no_held_rows"
+      ],
+      [
         "ElectricPlug.Examples#examples.a_schema_is_served_as_its_table"
       ],
       [
@@ -401,6 +466,21 @@
       ],
       [
         "ElectricPlug.Examples#examples.columns_never_widen_the_shape"
+      ],
+      [
+        "ElectricPlug.Examples#examples.explicit_connection_options_win"
+      ],
+      [
+        "ElectricPlug.Examples#examples.revoking_a_share_cuts_the_streams"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_calling_changes_are_named"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_repository_is_used_when_nothing_else_is_given"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_source_is_told_at_boot"
       ]
     ],
     "library_breaks": [
@@ -457,6 +537,9 @@
     ],
     "public_element": [
       [
+        "ElectricPlug.Config.Connection"
+      ],
+      [
         "ElectricPlug.Design#effects.database@403bdf7d"
       ],
       [
@@ -478,7 +561,13 @@
         "ElectricPlug.Design#library.ElectricPlug"
       ],
       [
+        "ElectricPlug.Design#library.ElectricPlug.Config.Connection"
+      ],
+      [
         "ElectricPlug.Design#library.ElectricPlug.Node"
+      ],
+      [
+        "ElectricPlug.Design#library.ElectricPlug.Revocation"
       ],
       [
         "ElectricPlug.Design#library.ElectricPlug.Shape"
@@ -535,6 +624,9 @@
         "ElectricPlug.Examples#examples.a_node_with_no_database_says_why"
       ],
       [
+        "ElectricPlug.Examples#examples.a_revoked_reader_gets_no_held_rows"
+      ],
+      [
         "ElectricPlug.Examples#examples.a_schema_is_served_as_its_table"
       ],
       [
@@ -547,10 +639,25 @@
         "ElectricPlug.Examples#examples.columns_never_widen_the_shape"
       ],
       [
+        "ElectricPlug.Examples#examples.explicit_connection_options_win"
+      ],
+      [
+        "ElectricPlug.Examples#examples.revoking_a_share_cuts_the_streams"
+      ],
+      [
         "ElectricPlug.Examples#examples.served_reads_are_policed"
       ],
       [
         "ElectricPlug.Examples#examples.served_shapes_name_their_read"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_calling_changes_are_named"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_repository_is_used_when_nothing_else_is_given"
+      ],
+      [
+        "ElectricPlug.Examples#examples.the_source_is_told_at_boot"
       ],
       [
         "ElectricPlug.Meaning#rules.names_a_read"
@@ -575,6 +682,9 @@
       ],
       [
         "ElectricPlug.Meaning#rules.serves_shapes"
+      ],
+      [
+        "ElectricPlug.Revocation"
       ]
     ],
     "spec_of": [

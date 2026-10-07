@@ -43,6 +43,16 @@ if Code.ensure_loaded?(VStack.Library) do
       owner "telic-supply-chains"
       reference "examples/electric_host"
 
+      api ElectricPlug.Revocation,
+        stub: true,
+        description:
+          "Cutting a person off a stream the moment their access ends: their cached shape filters flushed, their waiting long polls ended and their channel joins closed, without waiting for a cache to expire or a socket to reconnect."
+
+      api ElectricPlug.Config.Connection,
+        stub: true,
+        description:
+          "Which connection Electric replicates over, when both a repository and explicit connection options are configured: the explicit options win, and the source is logged."
+
       api ElectricPlug,
         description:
           "Serves the shape log of an authorised query to a request (`serve/4`): the one call a host's controller makes for each shape request, and nothing else, so a module that calls it is one that serves shapes."

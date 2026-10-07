@@ -149,5 +149,73 @@ if Code.ensure_loaded?(VStack.Examples) do
         answered :unavailable
       end
     end
+
+    example :revoking_a_share_cuts_the_streams do
+      description "Revoking a share flushes the person's cached filter, ends their waiting poll and closes their channel joins."
+      covers ElectricPlug.Revocation
+      act ElectricPlug.Revocation.revoke(%{person: "u-1", record: "space-9"}, [])
+
+      expect do
+        shaped(flushed: 1, polls_ended: 1, joins_closed: 1)
+      end
+    end
+
+    example :a_revoked_reader_gets_no_held_rows do
+      description "A long poll that was waiting delivers none of the rows it held when its reader was revoked."
+      covers ElectricPlug.Revocation
+      act ElectricPlug.Revocation.revoke(%{person: "u-1"}, [])
+
+      expect do
+        shaped(rows_delivered_after: 0)
+      end
+    end
+
+    example :the_calling_changes_are_named do
+      description "The authority changes that call revocation are named by the host."
+      covers ElectricPlug.Revocation
+      act ElectricPlug.Revocation.watching(:host)
+
+      expect do
+        listing([:grant_revoked, :group_member_removed, :role_revoked])
+      end
+    end
+
+    example :explicit_connection_options_win do
+      description "With a repository and explicit connection options both set, Electric replicates over the options."
+      covers ElectricPlug.Config.Connection
+
+      act ElectricPlug.Config.Connection.choose(
+            repo: :my_repo,
+            connection_opts: [hostname: "db-direct", port: 5432]
+          )
+
+      expect do
+        shaped(source: :connection_opts)
+      end
+    end
+
+    example :the_repository_is_used_when_nothing_else_is_given do
+      description "With only a repository, Electric uses its connection."
+      covers ElectricPlug.Config.Connection
+      act ElectricPlug.Config.Connection.choose(repo: :my_repo)
+
+      expect do
+        shaped(source: :repo)
+      end
+    end
+
+    example :the_source_is_told_at_boot do
+      description "The source of the connection is named for the boot log."
+      covers ElectricPlug.Config.Connection
+
+      act ElectricPlug.Config.Connection.source(
+            repo: :my_repo,
+            connection_opts: [hostname: "db-direct"]
+          )
+
+      expect do
+        answered(:connection_opts)
+      end
+    end
   end
 end

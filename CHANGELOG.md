@@ -1,5 +1,12 @@
 # Changelog
 
+## Designed, not built (2026-10-07, lane libraries)
+
+- `ElectricPlug.Revocation`: a revoked person's cached shape filters flushed, waiting long polls ended
+  and channel joins closed at once, called by the host's authority changes. Refuses as not built.
+- `ElectricPlug.Config.Connection`: with a repository and explicit `connection_opts` both set, the
+  explicit replication address wins and the source is named at boot. Refuses as not built.
+
 ## 0.3.0 — unreleased
 
 Brought to the library standard: the design is declared (`ElectricPlug.Design`), what serving

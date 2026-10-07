@@ -40,6 +40,8 @@ Serves Electric's shape log for an Ecto query the host has authorised, with Elec
 
 ### What applications call
 
+- `ElectricPlug.Revocation` (designed, not built: it refuses to run until it is): Cutting a person off a stream the moment their access ends: their cached shape filters flushed, their waiting long polls ended and their channel joins closed, without waiting for a cache to expire or a socket to reconnect.
+- `ElectricPlug.Config.Connection` (designed, not built: it refuses to run until it is): Which connection Electric replicates over, when both a repository and explicit connection options are configured: the explicit options win, and the source is logged.
 - `ElectricPlug`: Serves the shape log of an authorised query to a request (`serve/4`): the one call a host's controller makes for each shape request, and nothing else, so a module that calls it is one that serves shapes.
 - `ElectricPlug.Shape`: The shape `ElectricPlug.serve/4` serves for a query, as Electric is given it (its table, where clause, columns and replica), for a host that must know what a query will be served as before it serves it.
 - `ElectricPlug.Node`: This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; waiting until it serves; its embedded Electric's configuration, for a test reading the same stack; and reading its configuration again.
@@ -79,9 +81,9 @@ Facts its rules define besides, which its own rules and what it generates read:
 - `:served_shapes_name_their_read`: Every module that serves shape logs through ElectricPlug names, in its effects, the Ash read whose query it serves: a served query nothing accounts for breaks this rule rather than being taken as authorised
 - `:served_reads_are_policed`: Every read whose query a module serves through ElectricPlug is decided by its resource's policies: a read no policy decides hands every client every record its query keeps, so it breaks this rule however narrow the query looks
 
-Facts its rules await, which nothing gives yet: until one is given, each rule reading it is reported as not checked, never as holding.
+Facts its rules await, which nothing gives yet: until one is given, each rule reading it is reported as not checked, never as holding, unless the fact's absence means there is none of it (`absent: :none`), when its rules are checked.
 
-- `serves_read`, from EideticUI's published facts (a library that serves reads its own declarations name): serves_read(m, read): module m serves read, which its library's declarations name.
+- `serves_read`, from EideticUI's published facts (a library that serves reads its own declarations name): serves_read(m, read): module m serves read, which its library's declarations name. Where nothing gives it, there is none.
 
 ### Worked examples
 
@@ -99,6 +101,12 @@ Examples run in a world, each pinning down what it covers:
 - `:a_node_with_no_database_says_why`, covering `ElectricPlug.Node`: A node given neither a repository nor a connection runs no Electric, and says that it is disabled and why.
 - `:a_disabled_node_answers_unavailable`, covering `ElectricPlug`: A node configured to run nothing answers a shape request 503 without serving a row, and asks the client to come back much later, since it serves only once configured and restarted.
 - `:a_disabled_node_serves_nothing`, covering `ElectricPlug.Node`: A node configured to run nothing neither serves the stream nor forwards to a node that does.
+- `:revoking_a_share_cuts_the_streams`, covering `ElectricPlug.Revocation`: Revoking a share flushes the person's cached filter, ends their waiting poll and closes their channel joins.
+- `:a_revoked_reader_gets_no_held_rows`, covering `ElectricPlug.Revocation`: A long poll that was waiting delivers none of the rows it held when its reader was revoked.
+- `:the_calling_changes_are_named`, covering `ElectricPlug.Revocation`: The authority changes that call revocation are named by the host.
+- `:explicit_connection_options_win`, covering `ElectricPlug.Config.Connection`: With a repository and explicit connection options both set, Electric replicates over the options.
+- `:the_repository_is_used_when_nothing_else_is_given`, covering `ElectricPlug.Config.Connection`: With only a repository, Electric uses its connection.
+- `:the_source_is_told_at_boot`, covering `ElectricPlug.Config.Connection`: The source of the connection is named for the boot log.
 
 ### What it reaches outside the application
 

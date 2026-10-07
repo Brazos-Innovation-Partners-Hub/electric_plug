@@ -14,6 +14,9 @@ defmodule ElectricPlug.Test.World do
   @impl VStack.Examples.LibraryWorld
   def words do
     [
+      listing: "The act answered exactly this list of items, in any order.",
+      shaped:
+        "The act answered a map, or `{:ok, map}`, holding each of these keys at these values.",
       configured:
         "Given: `config :electric_plug` holds these keys and values (a nil value: the key is not set), read afresh.",
       shape:
@@ -59,6 +62,28 @@ defmodule ElectricPlug.Test.World do
   def perform(_declaration, _args, _context), do: :none
 
   @impl VStack.Examples.LibraryWorld
+  def judge(:listing, [items], [], %{result: result}) when is_list(result),
+    do:
+      if(Enum.sort(result) == Enum.sort(items),
+        do: :ok,
+        else: {:error, "it answered #{inspect(result)}"}
+      )
+
+  def judge(:shaped, [], opts, %{result: result}) do
+    map =
+      case result do
+        {:ok, %{} = map} -> map
+        %{} = map -> map
+        other -> other
+      end
+
+    case is_map(map) && Enum.reject(opts, fn {key, value} -> Map.get(map, key) == value end) do
+      [] -> :ok
+      false -> {:error, "it answered #{inspect(result)}"}
+      wrong -> {:error, "differs at #{inspect(Keyword.keys(wrong))}"}
+    end
+  end
+
   def judge(:shape, [], fields, %{result: {:ok, params}}) when is_list(params) do
     wrong =
       for {field, want} <- fields,
