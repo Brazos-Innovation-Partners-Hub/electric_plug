@@ -8,7 +8,8 @@ if Code.ensure_loaded?(VStack.Examples) do
 
     The rules are broken on a todo list's host, written out as the facts its code and
     declarations would give (`given`): a controller, `MyApp.TodoShapes`, that serves its todos
-    through `ElectricPlug`. The worked examples read the shape a query is served as
+    through `ElectricPlug`, beside a library's shape controller that serves the reads its own
+    declarations name (`serves_read`, which EideticUI publishes). The worked examples read the shape a query is served as
     (`ElectricPlug.Shape`), what a node runs (`ElectricPlug.Node`) and what a node that runs
     nothing answers a request (`ElectricPlug.serve/4`, given a request the world builds from the
     params the example writes), on the world's todos: a `todos` table read through two schemas,
@@ -22,15 +23,24 @@ if Code.ensure_loaded?(VStack.Examples) do
     breaks :served_shapes_name_their_read,
       in: ElectricPlug.Design,
       description:
-        "A controller that serves its todos through ElectricPlug and declares no read: its query could hold every todo of every owner, and nothing shows that a policy decides it.",
-      given: [calls("MyApp.TodoShapes", ElectricPlug)],
+        "A controller that serves its todos through ElectricPlug and declares no read, beside a library that serves the reads its own declarations name (a notes page's): the controller is not one of that library's, so nothing shows that a policy decides its query, which could hold every todo of every owner.",
+      given: [
+        calls("MyApp.TodoShapes", ElectricPlug),
+        serves_read("EideticUI.ShapeController", "MyApp.Notes.Note#actions.read")
+      ],
       names: [serves_shapes("MyApp.TodoShapes")]
 
     breaks :served_reads_are_policed,
       in: ElectricPlug.Design,
       description:
-        "A controller that serves the read of a todo resource with no policies: the read is named, but nothing decides who may read which todo, so every client is served every todo the query keeps.",
+        "A library's shape controller that serves a notes read its declarations name, and a todo controller that declares its todo read: neither resource has policies, so nothing decides who may read which note or todo, and every client is served every row the query keeps.",
       given: [
+        calls("EideticUI.ShapeController", ElectricPlug),
+        serves_read("EideticUI.ShapeController", "MyApp.Notes.Note#actions.read"),
+        element("MyApp.Notes.Note#actions.read", "read"),
+        in_extension("MyApp.Notes.Note#actions.read", "Ash.Resource.Dsl"),
+        in_module("MyApp.Notes.Note#actions.read", "MyApp.Notes.Note"),
+        property("MyApp.Notes.Note", "extensions", ["Ash.Resource.Dsl", "AshPostgres.DataLayer"]),
         calls("MyApp.TodoShapes", ElectricPlug),
         element("MyApp.TodoShapes#effects.MyApp.Todos.Todo", "calls"),
         in_extension("MyApp.TodoShapes#effects.MyApp.Todos.Todo", "VStack.Effects"),
@@ -43,7 +53,10 @@ if Code.ensure_loaded?(VStack.Examples) do
         in_module("MyApp.Todos.Todo#actions.read", "MyApp.Todos.Todo"),
         property("MyApp.Todos.Todo", "extensions", ["Ash.Resource.Dsl", "AshPostgres.DataLayer"])
       ],
-      names: [served_read("MyApp.TodoShapes", "MyApp.Todos.Todo#actions.read")]
+      names: [
+        served_read("EideticUI.ShapeController", "MyApp.Notes.Note#actions.read"),
+        served_read("MyApp.TodoShapes", "MyApp.Todos.Todo#actions.read")
+      ]
 
     # ── the shape a query is served as ──────────────────────────────────────────
 

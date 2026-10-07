@@ -14,7 +14,9 @@ if Code.ensure_loaded?(VStack.Rules) do
       * `serves_shapes(m)`: code in module `m`, not a test's, serves shape logs through
         `ElectricPlug` (it calls `ElectricPlug`, whose one function is `serve/4`);
       * `served_read(m, read)`: `m`, which serves shape logs, declares in its effects the Ash
-        read whose query it serves (`calls Resource, :action, class: :read`);
+        read whose query it serves (`calls Resource, :action, class: :read`), or its library
+        says it serves `read`, which that library's declarations name (`serves_read`, which a
+        library serving its hosts' reads publishes: EideticUI);
       * `names_a_read(m)`: `m` names at least one such read;
       * `policed_read(read)`: read action `read` is decided by its resource's policies (its
         resource uses `Ash.Policy.Authorizer`).
@@ -65,6 +67,23 @@ if Code.ensure_loaded?(VStack.Rules) do
           property(e, "resource", resource)
           property(e, "action", action)
           concat(read, resource, "#actions.", action)
+        end
+      end
+
+      # A library that serves reads its own declarations name (EideticUI's shape controller
+      # serves each live projection's read) says so; its module then names its reads that way.
+      awaits :serves_read,
+        from:
+          "EideticUI's published facts (a library that serves reads its own declarations name)",
+        description:
+          "serves_read(m, read): module m serves read, which its library's declarations name."
+
+      define served_read(m, read) do
+        description "Module m, which serves shape logs, serves read as its library's own declarations name it: a library that serves the reads its hosts declare (`serves_read`)."
+
+        where do
+          serves_shapes(m)
+          serves_read(m, read)
         end
       end
 
