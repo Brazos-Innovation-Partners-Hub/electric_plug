@@ -10,10 +10,6 @@ defmodule ElectricHost.Todos.Todo do
     repo ElectricHost.Repo
   end
 
-  resource do
-    description "A todo of one person's: what they mean to do. Only its owner may read it."
-  end
-
   attributes do
     uuid_primary_key :id
 
@@ -55,5 +51,9 @@ defmodule ElectricHost.Todos.Todo do
       description "Anyone may write down a todo."
       authorize_if always()
     end
+  end
+
+  resource do
+    description "A todo of one person's: what they mean to do. Only its owner may read it."
   end
 end
