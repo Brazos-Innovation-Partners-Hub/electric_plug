@@ -33,9 +33,9 @@ defmodule ElectricPlug.MixProject do
       {:vstack_dev, path: "#{@vstack}/vstack_dev", only: [:dev, :test], runtime: false},
       {:electric, "~> 1.8"},
       # Electric's own Elixir client, carried by us because upstream's stops at Electric 1.6.
-      {:electric_client,
-       git: "https://github.com/Brazos-Innovation-Partners-Hub/electric_client.git",
-       ref: "c41028fd724b6211fa537635381a106878e996a4"},
+      # By path from its design/library-standard branch, checked out beside this repository,
+      # so its design is read with this one's; the single push pins it by git again.
+      {:electric_client, path: "../electric_client"},
       # Electric's generated protobuf code must match the protox runtime; the version
       # Hex resolves for Electric alone does not.
       {:protox, "~> 2.0.10"},
