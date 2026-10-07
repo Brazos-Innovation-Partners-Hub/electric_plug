@@ -38,7 +38,7 @@ Serves Electric's shape log for an Ecto query the host has authorised, with Elec
 
 - `ElectricPlug`: Serves the shape log of an authorised query to a request (`serve/4`): the one call a host's controller makes for each shape request, and nothing else, so a module that calls it is one that serves shapes.
 - `ElectricPlug.Shape`: The shape `ElectricPlug.serve/4` serves for a query, as Electric is given it (its table, where clause, columns and replica), for a host that must know what a query will be served as before it serves it.
-- `ElectricPlug.Node`: This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; waiting until it serves; and reading its configuration again.
+- `ElectricPlug.Node`: This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; waiting until it serves; its embedded Electric's configuration, for a test reading the same stack; and reading its configuration again.
 - `ElectricPlug.Slots`: Electric's replication slots on the application's database: each listed with the log it holds back, Electric's own made ahead of Electric (failover-capable where the server supports it), the ones nothing reads found, and one dropped.
 - `Mix.Tasks.ElectricPlug.Slots`: Lists Electric's replication slots, finds the ones nothing reads and drops one by name, for an operator, using the application's own configuration.
 

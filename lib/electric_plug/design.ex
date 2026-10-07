@@ -53,7 +53,7 @@ if Code.ensure_loaded?(VStack.Library) do
 
       api ElectricPlug.Node,
         description:
-          "This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; waiting until it serves; and reading its configuration again."
+          "This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; waiting until it serves; its embedded Electric's configuration, for a test reading the same stack; and reading its configuration again."
 
       api ElectricPlug.Slots,
         description:

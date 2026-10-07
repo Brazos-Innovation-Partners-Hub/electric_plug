@@ -10,7 +10,9 @@ worked examples run in the suite. Breaking for hosts:
   shapes. `serving/0`, `ready?/0`, `await_ready/1` and `children/0` move to `ElectricPlug.Node`,
   beside `mode/0` (`:embedded`, `:forward` or `{:disabled, reason}`), `status/0` (this node's
   Electric: `:active`, `:waiting`, `:starting`, `:sleeping`, `:forwarding` or `:disabled`) and
-  `reset_configuration/0`. `api/0` is gone: it let a host drive Electric around the authorised
+  `reset_configuration/0` and `electric/0` (the embedded Electric's configuration as resolved,
+  for a test that reads the same stack with `Electric.Client.embedded/1`, which called
+  `ElectricPlug.Config.electric/0`). `api/0` is gone: it let a host drive Electric around the authorised
   query, and nothing called it. `ElectricPlug.Config` is internal; call `ElectricPlug.Node`.
 - **Electric's own options move under `electric:`**:
   `config :electric_plug, electric: [db_pool_size: 4]`. Every key is read by its name and

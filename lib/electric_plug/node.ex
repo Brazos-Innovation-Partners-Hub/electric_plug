@@ -3,7 +3,8 @@ defmodule ElectricPlug.Node do
   This node's part in serving shapes: what it runs (`mode/0`), whether it serves the stream
   itself, forwards to the node that does, or neither (`serving/0`), its Electric's status
   (`status/0`), the children that run Electric (`children/0`), and waiting until it serves
-  (`ready?/0`, `await_ready/1`). For readiness checks, a host's own supervision tree and tests.
+  (`ready?/0`, `await_ready/1`), and the embedded Electric's configuration (`electric/0`). For
+  readiness checks, a host's own supervision tree and tests.
 
   What it runs comes from `config :electric_plug`, read once and kept: `reset_configuration/0`
   forgets it, for a test or a drill that changes the configuration while the application runs.
@@ -72,6 +73,14 @@ defmodule ElectricPlug.Node do
   """
   @spec children() :: [Supervisor.child_spec() | {module(), term()} | module()]
   def children, do: Config.children()
+
+  @doc """
+  The embedded Electric's configuration as this library resolved it (its stack id, storage and
+  connection among it), `[]` when this node runs none: for a test that reads the same stack
+  directly, with `Electric.Client.embedded/1`, around the queries a host serves.
+  """
+  @spec electric() :: keyword()
+  def electric, do: Config.electric()
 
   @doc """
   Forgets the configuration read from `config :electric_plug`, so that the next call reads it

@@ -595,6 +595,11 @@
       ],
       [
         "ElectricPlug.Node",
+        "electric/0",
+        "sha256:63e7c12e6d9ec8c835a1be1e49d0d12079629f47cc7d5a20dc44bdfd1aec98ee"
+      ],
+      [
+        "ElectricPlug.Node",
         "mode/0",
         "sha256:9d1cfbe42a745eb10cd9558d6cc884f421ef338b4a1a6cf17c6295db4226213c"
       ],

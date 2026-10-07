@@ -24,6 +24,7 @@ defmodule ElectricPlug.NodeTest do
     assert Node.status() == :disabled
     assert Node.serving() == :unavailable
     assert Node.children() == []
+    assert Node.electric() == []
   end
 
   test "a node configured to run nothing is disabled with no reason" do
@@ -68,6 +69,7 @@ defmodule ElectricPlug.NodeTest do
     assert config[:replication_stream_id] == "todos"
     assert config[:replication_connection_opts][:database] == "todos"
     assert Node.mode() == :embedded
+    assert Node.electric() == config
   end
 
   test "a disabled node answers a shape request 503, and asks the client to come back later" do
