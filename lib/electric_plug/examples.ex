@@ -21,7 +21,7 @@ if Code.ensure_loaded?(VStack.Examples) do
     # ── the rules, each broken ──────────────────────────────────────────────────
 
     breaks :served_shapes_name_their_read,
-      in: ElectricPlug.Design,
+      in: ElectricPlug,
       description:
         "A controller that serves its todos through ElectricPlug and declares no read, beside a library that serves the reads its own declarations name (a notes page's): the controller is not one of that library's, so nothing shows that a policy decides its query, which could hold every todo of every owner.",
       given: [
@@ -31,7 +31,7 @@ if Code.ensure_loaded?(VStack.Examples) do
       names: [serves_shapes("MyApp.TodoShapes")]
 
     breaks :served_reads_are_policed,
-      in: ElectricPlug.Design,
+      in: ElectricPlug,
       description:
         "A library's shape controller that serves a notes read its declarations name, and a todo controller that declares its todo read: neither resource has policies, so nothing decides who may read which note or todo, and every client is served every row the query keeps.",
       given: [

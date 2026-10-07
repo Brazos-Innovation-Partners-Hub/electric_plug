@@ -16,6 +16,7 @@ defmodule ElectricPlug.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      aliases: [precommit: &precommit/1],
       description:
         "Serves Electric's shape-log protocol for an authorised Ecto query, with Electric embedded",
       source_url: @source,
@@ -28,8 +29,43 @@ defmodule ElectricPlug.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_env), do: ["lib"]
 
+  def cli, do: [preferred_envs: [precommit: :test]]
+
   def application do
     [extra_applications: [:logger], mod: {ElectricPlug.Application, []}]
+  end
+
+  # The gate: this project formatted, compiled with warnings as errors and tested, the tests
+  # against a real PostgreSQL included (`ELECTRIC_PLUG_DB=1`); then the library standard against
+  # the committed baseline and the usage rules written from the design; then the reference
+  # application, its suite and the rules its libraries ship.
+  defp precommit(_args) do
+    for args <- [
+          ~w(format --check-formatted),
+          ~w(compile --warnings-as-errors),
+          ~w(test),
+          ~w(vstack.library --app electric_plug --baseline design/facts.json),
+          ~w(vstack.usage_rules --app electric_plug --file usage-rules.md --check)
+        ],
+        do: run!(".", args, [{"MIX_ENV", "test"}, {"ELECTRIC_PLUG_DB", "1"}])
+
+    for args <- [
+          ~w(deps.get),
+          ~w(format --check-formatted),
+          ~w(compile --warnings-as-errors),
+          ~w(test),
+          ~w(vstack.rules --code)
+        ],
+        do: run!("examples/electric_host", args, [{"MIX_ENV", "test"}])
+  end
+
+  defp run!(dir, args, env) do
+    path = Path.expand(dir, __DIR__)
+    {_, status} = System.cmd("mix", args, cd: path, into: IO.stream(), env: env)
+
+    if status != 0 do
+      Mix.raise("#{path}: mix #{Enum.join(args, " ")} failed")
+    end
   end
 
   defp deps do
