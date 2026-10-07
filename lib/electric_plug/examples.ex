@@ -9,9 +9,11 @@ if Code.ensure_loaded?(VStack.Examples) do
     The rules are broken on a todo list's host, written out as the facts its code and
     declarations would give (`given`): a controller, `MyApp.TodoShapes`, that serves its todos
     through `ElectricPlug`. The worked examples read the shape a query is served as
-    (`ElectricPlug.Shape`) and what a node runs (`ElectricPlug.Node`), on the world's todos: a
-    `todos` table read through two schemas, one mapping every column (`ElectricPlug.Test.Todo`)
-    and one leaving the owner out (`ElectricPlug.Test.PublicTodo`).
+    (`ElectricPlug.Shape`), what a node runs (`ElectricPlug.Node`) and what a node that runs
+    nothing answers a request (`ElectricPlug.serve/4`, given a request the world builds from the
+    params the example writes), on the world's todos: a `todos` table read through two schemas,
+    one mapping every column (`ElectricPlug.Test.Todo`) and one leaving the owner out
+    (`ElectricPlug.Test.PublicTodo`).
     """
     use VStack.Examples
 
@@ -102,6 +104,21 @@ if Code.ensure_loaded?(VStack.Examples) do
 
       expect do
         answered {:disabled, "no `repo` or `connection_opts` configured"}
+      end
+    end
+
+    example :a_disabled_node_answers_unavailable do
+      description "A node configured to run nothing answers a shape request 503 without serving a row, and asks the client to come back much later, since it serves only once configured and restarted."
+      covers ElectricPlug
+
+      given do
+        configured mode: :disabled
+      end
+
+      act ElectricPlug.serve(%{"offset" => "-1", "table" => "secrets"}, ElectricPlug.Test.Todo)
+
+      expect do
+        responded 503, retry_after: "300"
       end
     end
 

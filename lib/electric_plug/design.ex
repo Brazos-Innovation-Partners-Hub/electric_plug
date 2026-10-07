@@ -20,11 +20,18 @@ if Code.ensure_loaded?(VStack.Library) do
     (`config :electric_plug`, every key declared here), and, on each request, the authorised
     query (`ElectricPlug.serve/4`). It declares no vocabulary of its own.
 
+    What its code reaches outside the application is the application's own database: Electric,
+    once started, reads its logical replication stream and makes the publication and slot it
+    reads through; the slots are listed, made and dropped; and a clustered node asks who holds
+    Electric's lock. These effects are declared here, each naming the module that has it
+    (`by:`), so that Spark, which the declarations are written in, is no dependency of the
+    plug at run time.
+
     It stands with Phoenix and Ecto (`:core`). Its reference is `examples/electric_host`, an
     application that serves an authorised read of its own records through it and reads them
     back with `electric_client`.
     """
-    use VStack.Library
+    use VStack.Library, extensions: [VStack.Effects]
 
     library do
       name :electric_plug
@@ -46,7 +53,7 @@ if Code.ensure_loaded?(VStack.Library) do
 
       api ElectricPlug.Node,
         description:
-          "This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; and waiting until it serves."
+          "This node's part in serving: whether it serves the stream itself, forwards to the node that does, or neither; what it runs and why (its mode and its Electric's status); the children that run Electric; waiting until it serves; and reading its configuration again."
 
       api ElectricPlug.Slots,
         description:
@@ -92,9 +99,8 @@ if Code.ensure_loaded?(VStack.Library) do
 
       config :replication_stream_id,
         type: :string,
-        default: "default",
         description:
-          "The name of the stream this node serves, or, forwarding, the one whose serving node it forwards to: Electric's slot, publication and lock are named after it, and every node of a cluster gives the same one."
+          "The name of the stream this node serves, or, forwarding, the one whose serving node it forwards to: Electric's slot, publication and lock are named after it, and every node of a cluster gives the same one. Unset, a test run makes one of its own, and production uses `default` and warns."
 
       config :storage_dir,
         type: :string,
@@ -132,6 +138,50 @@ if Code.ensure_loaded?(VStack.Library) do
         default: [],
         description:
           "Electric's own options (such as `db_pool_size`), given to the embedded Electric as they are, over the defaults this library chooses for the environment."
+    end
+
+    effects do
+      reaches :database,
+        class: :read,
+        by: ElectricPlug.Slots,
+        doc:
+          "Lists the database's logical replication slots (`list/1`, `orphans/2`): whether something reads each, whether it is failover-capable, and how much of the log it holds back."
+
+      # Making converges: what exists is left as it is, so a repeat finds it and changes nothing.
+      reaches :database,
+        class: :configure,
+        by: ElectricPlug.Slots,
+        doc:
+          "Makes Electric's publication and replication slot when they are missing (`ensure/3`), the slot failover-capable where the server supports it, dropping an idle slot found without its publication to make it again after it, as Electric itself would replace it; and drops a publication if it exists (`drop_publication/2`)."
+
+      # A drop is never retried: a lost answer is the caller's to hear (`{:error, reason}`), and
+      # dropping the same slot again finds it gone (`{:error, :missing}`), the same effect.
+      reaches :database do
+        class :actuate
+        by ElectricPlug.Slots
+
+        doc "Drops a replication slot by name (`drop/2`), refusing one something reads: the log it held back is released, and whatever read it must start again from a new slot."
+
+        promise idempotent_by: [:name], on_unknown: :report
+      end
+
+      reaches :database,
+        class: :read,
+        by: ElectricPlug.Cluster.Gate,
+        doc:
+          "Asks, with one instant query on a connection that holds nothing, whether another node holds Electric's lock for the stream and whether anything reads its slot."
+
+      reaches :database,
+        class: :read,
+        by: ElectricPlug.Application,
+        doc:
+          "Starts Electric (in a cluster, once `ElectricPlug.Cluster.Gate` finds its lock free), which reads the database's logical replication stream through its slot, and each shape's rows when the shape is first read."
+
+      reaches :database,
+        class: :configure,
+        by: ElectricPlug.Application,
+        doc:
+          "Electric, once started, makes its publication and slot when they are missing, adds each shape's table to the publication, and holds an advisory lock named after the slot while it serves."
     end
   end
 end

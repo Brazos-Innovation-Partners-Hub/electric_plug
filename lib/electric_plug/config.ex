@@ -3,26 +3,55 @@ defmodule ElectricPlug.Config do
   # Turns `config :electric_plug` into Electric's configuration, once. The children and
   # the API must agree on the stack id, the storage and the slot, and in test those are
   # generated per run — so the first resolution is kept and every later call reads it.
+  #
+  # Every key is read by its name (each is declared in `ElectricPlug.Design`); Electric's own
+  # options come under `electric:`, given to Electric as they are. The resolution is kept in
+  # `:persistent_term`, not in the application's configuration, which holds only what the
+  # host wrote.
 
   require Logger
 
-  @ours [:env, :mode, :repo, :connection_opts, :start, :slot, :cluster]
+  @resolved {__MODULE__, :resolved}
 
   @doc "The Electric configuration, resolved once per VM."
   def resolved do
-    case Application.fetch_env(:electric_plug, :__resolved__) do
-      {:ok, config} ->
+    case :persistent_term.get(@resolved, nil) do
+      nil ->
+        config = resolve(settings())
+        :persistent_term.put(@resolved, config)
         config
 
-      :error ->
-        config = resolve(Application.get_all_env(:electric_plug))
-        Application.put_env(:electric_plug, :__resolved__, config)
+      config ->
         config
     end
   end
 
   @doc false
-  def reset, do: Application.delete_env(:electric_plug, :__resolved__)
+  def reset do
+    :persistent_term.erase(@resolved)
+    :ok
+  end
+
+  # What the host configured, key by key. Electric's own options are under `electric:`; the
+  # stream's name and the storage directory, which this library reads too, may be given
+  # beside them or among them, beside winning.
+  defp settings do
+    electric = Application.get_env(:electric_plug, :electric, [])
+
+    [
+      env: Application.get_env(:electric_plug, :env),
+      mode: Application.get_env(:electric_plug, :mode, :embedded),
+      repo: Application.get_env(:electric_plug, :repo),
+      connection_opts: Application.get_env(:electric_plug, :connection_opts),
+      cluster: Application.get_env(:electric_plug, :cluster, false),
+      replication_stream_id:
+        Application.get_env(:electric_plug, :replication_stream_id) ||
+          Keyword.get(electric, :replication_stream_id),
+      storage_dir:
+        Application.get_env(:electric_plug, :storage_dir) || Keyword.get(electric, :storage_dir),
+      electric: electric
+    ]
+  end
 
   def mode do
     case resolved() do
@@ -133,6 +162,16 @@ defmodule ElectricPlug.Config do
     end
   end
 
+  # This node's Electric's own status; `:starting` while it cannot be asked.
+  @doc false
+  def service_status do
+    Electric.StatusMonitor.service_status(Keyword.fetch!(electric(), :stack_id))
+  rescue
+    _ -> :starting
+  catch
+    :exit, _ -> :starting
+  end
+
   def ready? do
     case resolved() do
       {:disabled, _} ->
@@ -192,7 +231,7 @@ defmodule ElectricPlug.Config do
   defp resolve(opts) do
     env = Keyword.get(opts, :env) || warn_env()
 
-    case Keyword.get(opts, :mode, :embedded) do
+    case Keyword.fetch!(opts, :mode) do
       :disabled ->
         {:disabled, nil}
 
@@ -200,16 +239,18 @@ defmodule ElectricPlug.Config do
       # goes, over the cluster, to the node serving `replication_stream_id`
       # (`ElectricPlug.Cluster`). It needs no connection, no slot and no storage.
       :forward ->
-        {:forward, Keyword.get(opts, :replication_stream_id, "default")}
+        {:forward, Keyword.get(opts, :replication_stream_id) || "default"}
 
       :embedded ->
         case connection(opts) do
           {:ok, connection_opts} ->
             opts
-            |> Keyword.drop(@ours)
+            |> Keyword.fetch!(:electric)
+            |> put_given(:replication_stream_id, Keyword.get(opts, :replication_stream_id))
+            |> put_given(:storage_dir, Keyword.get(opts, :storage_dir))
             |> Keyword.put(:replication_connection_opts, connection_opts)
             |> env_defaults(env)
-            |> cluster_defaults(Keyword.get(opts, :cluster, false))
+            |> cluster_defaults(Keyword.fetch!(opts, :cluster))
             |> Keyword.put_new(:stack_id, "electric-embedded")
             |> Keyword.put_new(:stack_ready_timeout, 5_000)
 
@@ -222,6 +263,9 @@ defmodule ElectricPlug.Config do
               "electric_plug: mode must be :embedded, :forward or :disabled, got #{inspect(other)}"
     end
   end
+
+  defp put_given(opts, _key, nil), do: opts
+  defp put_given(opts, key, value), do: Keyword.put(opts, key, value)
 
   # A clustered node keeps its shapes for one tenure, in a directory of their own.
   defp cluster_defaults(opts, true) do

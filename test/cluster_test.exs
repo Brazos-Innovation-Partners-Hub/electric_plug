@@ -82,7 +82,7 @@ defmodule ElectricPlug.ClusterTest do
 
     assert conn.status == 503
     assert Plug.Conn.get_resp_header(conn, "retry-after") == ["1"]
-    assert ElectricPlug.serving() == :unavailable
+    assert ElectricPlug.Node.serving() == :unavailable
   end
 
   test "a local shape whose lookup cannot reach Postgres returns 503 with a retryable message" do
@@ -156,7 +156,7 @@ defmodule ElectricPlug.ClusterTest do
 
       assert conn.status == 503
       assert Plug.Conn.get_resp_header(conn, "retry-after") == ["1"]
-      assert ElectricPlug.serving() == :unavailable
+      assert ElectricPlug.Node.serving() == :unavailable
     end
   end
 
@@ -196,7 +196,7 @@ defmodule ElectricPlug.ClusterTest do
       Application.put_env(:electric_plug, :storage_dir, tmp)
 
       for child <- Config.children(), do: start_supervised!(child)
-      :ok = ElectricPlug.await_ready()
+      :ok = ElectricPlug.Node.await_ready()
       %{table: table}
     end
 
@@ -277,7 +277,7 @@ defmodule ElectricPlug.ClusterTest do
 
       assert wait_until(fn -> Cluster.active_node() == node() end)
       assert Cluster.route() == :local
-      assert ElectricPlug.serving() == :active
+      assert ElectricPlug.Node.serving() == :active
     end
   end
 

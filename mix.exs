@@ -5,7 +5,7 @@ defmodule ElectricPlug.MixProject do
   # until the single push pins it by git again.
   @vstack "../vstack/packages"
 
-  @version "0.2.5"
+  @version "0.3.0"
   @source "https://github.com/Brazos-Innovation-Partners-Hub/electric_plug"
 
   def project do
@@ -13,6 +13,7 @@ defmodule ElectricPlug.MixProject do
       app: :electric_plug,
       version: @version,
       elixir: "~> 1.17",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description:
@@ -22,6 +23,10 @@ defmodule ElectricPlug.MixProject do
       package: [licenses: ["Apache-2.0"], links: %{"GitHub" => @source}]
     ]
   end
+
+  # The worked examples' world and the schemas they read are the tests'.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
 
   def application do
     [extra_applications: [:logger], mod: {ElectricPlug.Application, []}]

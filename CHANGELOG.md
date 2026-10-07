@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.3.0 — unreleased
+
+Brought to the library standard: the design is declared (`ElectricPlug.Design`), what serving
+means is stated as facts with two rules every host follows (`ElectricPlug.Meaning`), and the
+worked examples run in the suite. Breaking for hosts:
+
+- **`ElectricPlug` holds `serve/4` alone,** so a module that calls it is one that serves
+  shapes. `serving/0`, `ready?/0`, `await_ready/1` and `children/0` move to `ElectricPlug.Node`,
+  beside `mode/0` (`:embedded`, `:forward` or `{:disabled, reason}`), `status/0` (this node's
+  Electric: `:active`, `:waiting`, `:starting`, `:sleeping`, `:forwarding` or `:disabled`) and
+  `reset_configuration/0`. `api/0` is gone: it let a host drive Electric around the authorised
+  query, and nothing called it. `ElectricPlug.Config` is internal; call `ElectricPlug.Node`.
+- **Electric's own options move under `electric:`**:
+  `config :electric_plug, electric: [db_pool_size: 4]`. Every key is read by its name and
+  declared in the design; options of Electric's written beside this library's own are no
+  longer read. `replication_stream_id` and `storage_dir`, which this library reads too, stay
+  beside them (or among them; beside wins).
+- **`log_level:`** sets the level of Electric's own log messages (default `:info`), in place of
+  the `ELECTRIC_LOG_LEVEL` environment variable: set it from the variable in `runtime.exs`.
+- The configuration as resolved is kept apart from the application's configuration (it was
+  under `:__resolved__`); a test that changes the configuration calls
+  `ElectricPlug.Node.reset_configuration/0`.
+- **Rules every host follows** (`ElectricPlug.Meaning`), failing closed: a module that serves
+  shapes names, in its effects, the Ash read its query comes from
+  (`calls Resource, :read, class: :read`), and that read is decided by its resource's policies
+  (`Ash.Policy.Authorizer`).
+
+Fixed:
+
+- **A shape can no longer be wider than its query.** `columns:` replaced the query's columns,
+  so it could name a column the query does not select; and `where:` and `params:` options
+  replaced the query's where clause. Now `columns:` only narrows (a column the query does not
+  select is refused), `where:`, `params:` and any other option are refused, and `serve/4`
+  raises `ArgumentError` before anything is served. `ElectricPlug.Shape.params/2` says what a
+  query is served as.
+- A disabled node answers a shape request 503, with `retry-after: 300`, instead of raising.
+
 ## 0.2.5 — 2026-09-30
 
 - `mode: :forward`: a node that runs no Electric and answers every shape request by sending

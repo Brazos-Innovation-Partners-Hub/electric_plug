@@ -15,6 +15,15 @@ defmodule ElectricPlug.Serve do
 
   @doc false
   def call(conn, params, shape_params, interrupt \\ nil) do
+    case ElectricPlug.Config.resolved() do
+      # A node that runs nothing serves nothing: unavailable, and not soon, for it serves
+      # only once it is configured and restarted.
+      {:disabled, reason} -> disabled(conn, reason)
+      _config -> route(conn, params, shape_params, interrupt)
+    end
+  end
+
+  defp route(conn, params, shape_params, interrupt) do
     # Only a long poll waits, so only a long poll can be interrupted.
     interrupt = if live?(params), do: interrupt
 
@@ -178,6 +187,18 @@ defmodule ElectricPlug.Serve do
   catch
     kind, reason ->
       unavailable(conn, "the node serving shapes did not answer: #{inspect({kind, reason})}")
+  end
+
+  defp disabled(conn, reason) do
+    message =
+      "this node serves no shapes: electric_plug is disabled" <>
+        if(reason, do: " (#{reason})", else: "")
+
+    conn
+    |> json()
+    |> Plug.Conn.put_resp_header("retry-after", "300")
+    |> Plug.Conn.put_resp_header("cache-control", "no-store")
+    |> Plug.Conn.send_resp(503, Jason.encode!(%{message: message}))
   end
 
   defp unavailable(conn, message) do

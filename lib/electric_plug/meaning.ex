@@ -11,8 +11,8 @@ if Code.ensure_loaded?(VStack.Rules) do
     narrow the columns. So what a client may see is decided where the query is built, by the
     host, and these facts follow that decision to where a rule can judge it:
 
-      * `serves_shapes(m)`: code in module `m` serves shape logs through `ElectricPlug` (it
-        calls `ElectricPlug`, whose one function is `serve/4`);
+      * `serves_shapes(m)`: code in module `m`, not a test's, serves shape logs through
+        `ElectricPlug` (it calls `ElectricPlug`, whose one function is `serve/4`);
       * `served_read(m, read)`: `m`, which serves shape logs, declares in its effects the Ash
         read whose query it serves (`calls Resource, :action, class: :read`);
       * `names_a_read(m)`: `m` names at least one such read;
@@ -29,10 +29,11 @@ if Code.ensure_loaded?(VStack.Rules) do
 
     rules do
       define serves_shapes(m) do
-        description "Code in module m serves shape logs through ElectricPlug: what it sends a client is exactly the rows and columns of the query m passes, so m is where what a client may see is decided."
+        description "Code in module m serves shape logs through ElectricPlug: what it sends a client is exactly the rows and columns of the query m passes, so m is where what a client may see is decided. A module compiled from tests serves no client and is left out."
 
         where do
           calls(m, ElectricPlug)
+          not test_module(m)
         end
       end
 
