@@ -54,7 +54,12 @@ defmodule ElectricPlug.HandleTest do
     tables = %{table: "handle_rows_#{run}", other: "handle_others_#{run}"}
 
     for {_, name} <- tables,
-        do: Postgrex.query!(db, "create table #{name} (id bigint primary key, owner text, title text)", [])
+        do:
+          Postgrex.query!(
+            db,
+            "create table #{name} (id bigint primary key, owner text, title text)",
+            []
+          )
 
     on_exit(fn ->
       {:ok, db} = Postgrex.start_link(Keyword.put(@conn, :database, @database))
@@ -62,7 +67,13 @@ defmodule ElectricPlug.HandleTest do
     end)
 
     Application.put_env(:electric_plug, :env, :test)
-    Application.put_env(:electric_plug, :connection_opts, Keyword.put(@conn, :database, @database))
+
+    Application.put_env(
+      :electric_plug,
+      :connection_opts,
+      Keyword.put(@conn, :database, @database)
+    )
+
     Application.put_env(:electric_plug, :storage_dir, tmp)
     # Electric's own options for the test that needs them (a host that lets clients delete).
     Application.put_env(:electric_plug, :electric, Map.get(context, :electric, []))
