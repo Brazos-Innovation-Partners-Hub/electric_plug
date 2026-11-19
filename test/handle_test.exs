@@ -133,6 +133,9 @@ defmodule ElectricPlug.HandleTest do
     assert answer.status == 409, answer.resp_body
     assert must_refetch?(answer)
     refute header(answer, "electric-handle") == [handle]
+
+    # The handle's own shape is still served its rows.
+    assert "another table's second" in follow(owned(other, owner), handle, offset)
   end
 
   test "a handle of a shape of other columns is never served, even one that hashes as this request's shape",
@@ -154,6 +157,9 @@ defmodule ElectricPlug.HandleTest do
     assert answer.status == 409, answer.resp_body
     assert must_refetch?(answer)
     refute header(answer, "electric-handle") == [handle]
+
+    # The handle's own shape is still served its rows.
+    assert "every column's second" in follow(owned(table, owner), handle, offset)
   end
 
   test "a handle whose shape was deleted is never served: 409, and the shape starts over on a new handle",
