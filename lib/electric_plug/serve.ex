@@ -2,13 +2,17 @@ defmodule ElectricPlug.Serve do
   @moduledoc false
   # The request against a shape the server chose. Electric validates only the tailing
   # parameters — offset, handle, live, cursor — and streams the log; a client's own
-  # table, where or columns are ignored, which is the point.
+  # table, where or columns are ignored, which is the point. A handle the client presents
+  # is taken only when it names that shape (`presented/4`).
   #
   # In a cluster (`ElectricPlug.Cluster`) the node that is not serving the stream sends
   # the same request to the one that is, and relays its answer. The shape was decided
   # here, by this node's authorisation; the other node only reads its log.
 
   alias Electric.Shapes
+  alias Electric.Shapes.Shape
+
+  require Logger
 
   # Beyond Electric's long poll, for the hop and the relay.
   @hop_ms 30_000
@@ -151,8 +155,6 @@ defmodule ElectricPlug.Serve do
   rescue
     # Said, not swallowed: a quiet failure here is a shape refused for ever again.
     error ->
-      require Logger
-
       Logger.warning(
         "electric_plug: could not refresh #{inspect(shape_params[:table])}: #{Exception.message(error)}"
       )
@@ -209,32 +211,138 @@ defmodule ElectricPlug.Serve do
     |> Plug.Conn.send_resp(503, Jason.encode!(%{message: message}))
   end
 
+  # Electric's `Shapes.Api.validate/2` is its `validate_params/2` and then its
+  # `load_shape_info/1`, which resolves the handle the client presents and seeks in that
+  # shape's log. The presented handle is checked between the two, before anything of the
+  # shape it names is looked up, listened to or sent.
   defp respond(api, %{method: "GET"} = conn, params) do
-    case Shapes.Api.validate(api, params) do
-      {:ok, request} ->
-        conn
-        |> json()
-        |> Plug.Conn.assign(:request, request)
-        |> Shapes.Api.serve_shape_log(request)
-
-      {:error, response} ->
-        conn |> json() |> Shapes.Api.Response.send(response) |> Plug.Conn.halt()
+    with {:ok, request} <- Shapes.Api.validate_params(api, params),
+         shape = request.params.shape_definition,
+         :ok <- presented(request, request.params.handle, shape, not request.read_only?),
+         {:ok, request} <- Shapes.Api.load_shape_info(request) do
+      conn
+      |> json()
+      |> Plug.Conn.assign(:request, request)
+      |> Shapes.Api.serve_shape_log(request)
+    else
+      {:error, response} -> refuse(conn, response)
     end
   end
 
+  # A delete removes the shape Electric resolved for it: by the shape's definition, or, when
+  # the client sends a handle alone, the shape stored under that handle, whichever it is. It
+  # is removed only when it is this request's own shape.
   defp respond(api, %{method: "DELETE"} = conn, params) do
-    case Shapes.Api.validate_for_delete(api, params) do
-      {:ok, request} ->
-        conn |> json() |> Plug.Conn.assign(:request, request) |> Shapes.Api.delete_shape(request)
-
-      {:error, response} ->
-        conn |> json() |> Shapes.Api.Response.send(response) |> Plug.Conn.halt()
+    with {:ok, request} <- Shapes.Api.validate_for_delete(api, params),
+         :ok <- presented(request, request.handle, api.shape, false) do
+      conn |> json() |> Plug.Conn.assign(:request, request) |> Shapes.Api.delete_shape(request)
+    else
+      {:error, response} -> refuse(conn, response)
     end
   end
 
   defp respond(_api, %{method: "OPTIONS"} = conn, _params), do: Shapes.Api.options(conn)
 
   defp respond(_api, conn, _params), do: Plug.Conn.send_resp(conn, 405, "")
+
+  defp refuse(conn, response),
+    do: conn |> json() |> Shapes.Api.Response.send(response) |> Plug.Conn.halt()
+
+  # A handle names the log a client is sent. Electric (1.8.1) takes a presented handle when a
+  # 27-bit hash (`:erlang.phash2/1`) of the shape stored under it equals the requested shape's
+  # (`Electric.ShapeCache.ShapeStatus.validate_shape_handle/3`). That hash covers the where
+  # clause, which holds values a client chooses (whose rows, which board), and a handle's text
+  # begins with it: a search finds a value whose shape hashes as another person's, and that
+  # person's handle, which travels in every URL after her first, then reads her log.
+  #
+  # So a presented handle is taken only when the shape stored under it is this request's shape,
+  # byte for byte as Electric itself tells shapes apart when no handle is presented
+  # (`Shape.comparable/1`: the table, its key, the where clause with every value in it, the
+  # columns, replica and log mode; its handle lookup keys on a digest of exactly these bytes).
+  # Any other handle, or one whose shape is gone, is answered as Electric answers a handle it
+  # does not know: 409 must-refetch, with this request's own shape's handle to start over on
+  # (made if there is none yet and `make?`). Where the shape under a handle cannot be read,
+  # nothing is served on it: 503.
+  defp presented(_request, nil, _shape, _make?), do: :ok
+
+  defp presented(request, handle, %Shape{} = shape, make?) when is_binary(handle) do
+    case stored(request.api.stack_id, handle) do
+      {:ok, stored} ->
+        if comparable(stored) == comparable(shape),
+          do: :ok,
+          else: {:error, must_refetch(request, shape, stored, make?)}
+
+      :error ->
+        {:error, must_refetch(request, shape, nil, make?)}
+
+      {:unavailable, reason} ->
+        {:error,
+         Shapes.Api.Response.error(request, "the shape's handle could not be checked: #{reason}",
+           status: 503,
+           retry_after: 1
+         )}
+    end
+  end
+
+  # No shape to compare the handle with: it is not served.
+  defp presented(request, _handle, _shape, _make?),
+    do: {:error, must_refetch(request, nil, nil, false)}
+
+  defp stored(stack_id, handle) do
+    case Shapes.fetch_shape_by_handle(stack_id, handle) do
+      {:ok, %Shape{} = shape} -> {:ok, shape}
+      _ -> :error
+    end
+  rescue
+    error -> {:unavailable, Exception.message(error)}
+  catch
+    :exit, _reason -> {:unavailable, "the shape store did not answer"}
+  end
+
+  defp comparable(shape),
+    do: shape |> Shape.comparable() |> :erlang.term_to_binary([:deterministic])
+
+  defp must_refetch(request, shape, stored, make?) do
+    if stored && Shape.hash(stored) == Shape.hash(shape) do
+      # Not a shape whose definition has since changed: another shape, whose hash Electric
+      # cannot tell from this one's, was asked for by its handle.
+      Logger.warning(
+        "electric_plug: refused a presented handle whose shape (#{inspect(stored.root_table)}) " <>
+          "hashes as the requested shape's (#{inspect(shape.root_table)}) but is another shape"
+      )
+    end
+
+    error = Shapes.Api.Error.must_refetch()
+
+    Shapes.Api.Response.error(request, error.message,
+      handle: own_handle(request.api.stack_id, shape, make?),
+      status: error.status
+    )
+  end
+
+  # This request's own shape's handle, as Electric's own must-refetch gives one. None when it
+  # cannot be had: the client then starts over without one.
+  defp own_handle(_stack_id, nil, _make?), do: nil
+
+  defp own_handle(stack_id, shape, make?) do
+    case {Shapes.fetch_handle_by_shape(stack_id, shape), make?} do
+      {{:ok, handle}, _make?} ->
+        handle
+
+      {:error, true} ->
+        case Shapes.get_or_create_shape_handle(stack_id, shape) do
+          {handle, _offset} when is_binary(handle) -> handle
+          _ -> nil
+        end
+
+      {:error, false} ->
+        nil
+    end
+  rescue
+    _error -> nil
+  catch
+    :exit, _reason -> nil
+  end
 
   defp json(conn), do: Plug.Conn.put_resp_content_type(conn, "application/json")
 end

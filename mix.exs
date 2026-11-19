@@ -5,7 +5,7 @@ defmodule ElectricPlug.MixProject do
   # until the single push pins it by git again.
   @vstack "../vstack/packages"
 
-  @version "0.3.0"
+  @version "0.3.1"
   @source "https://github.com/Brazos-Innovation-Partners-Hub/electric_plug"
 
   def project do

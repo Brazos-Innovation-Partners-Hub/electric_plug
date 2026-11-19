@@ -7,6 +7,28 @@
 - `ElectricPlug.Config.Connection`: with a repository and explicit `connection_opts` both set, the
   explicit replication address wins and the source is named at boot. Refuses as not built.
 
+## 0.3.1 — unreleased
+
+Fixed (security):
+
+- **A handle a client presents is served only when it names this request's shape.** Electric
+  1.8.1 takes a presented handle when a 27-bit hash (`:erlang.phash2/1`) of the shape stored
+  under it equals the requested shape's, and that hash covers the where clause, which holds
+  values a client chooses (a person's id, a board's): a search of under a minute found a board
+  id whose shape hashed as another person's, and with her handle, which travels in the URL of
+  every request after her first, his live poll was sent her rows. Now the shape stored under a
+  presented handle must be the request's own shape, byte for byte as Electric tells two shapes
+  apart (`Shape.comparable/1`: table, key, where clause with its values, columns, replica, log
+  mode); any other handle, or one whose shape is gone, is answered 409 must-refetch with the
+  request's own shape's handle, and nothing of the other shape is sent. A delete by handle
+  removes only the request's own shape. A handle whose shape cannot be read is answered 503.
+  Hosts change nothing but their pin. `test/handle_test.exs` finds colliding shapes as an
+  attacker would and proves each case against a real Electric.
+
+Tests: `ConfigTest` no longer leaves `:env` and `:connection_opts` set for the next module, and
+`NodeTest` starts from no configuration (a seed-dependent failure of
+"a node with nothing to connect to is disabled").
+
 ## 0.3.0 — unreleased
 
 Brought to the library standard: the design is declared (`ElectricPlug.Design`), what serving

@@ -15,6 +15,11 @@ Written by hand: what the design cannot say.
 - **`columns:` narrows; nothing widens.** A column the query does not select, a `where:` or a
   `params:` beside the query raises `ArgumentError` before anything is served. Ask
   `ElectricPlug.Shape.params/2` what a query will be served as.
+- **A handle names one shape.** A client's `handle` is served only when the shape stored under
+  it is the request's own shape, whole; any other is answered 409 must-refetch with the
+  request's own handle, and a delete by handle removes only the request's own shape. Handles
+  travel in URLs: do not rely on one being secret, and keep shape responses out of shared caches
+  (`cache-control: private`), as EideticUI's shape controller does.
 - **Electric's own options go under `electric:`**; the plug's own keys stay beside it. A key of
   Electric's written beside them is not read.
 - **Readiness and status live on `ElectricPlug.Node`**, not on `ElectricPlug`, whose one
