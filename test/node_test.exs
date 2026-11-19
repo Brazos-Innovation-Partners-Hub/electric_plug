@@ -10,6 +10,8 @@ defmodule ElectricPlug.NodeTest do
   @keys [:mode, :repo, :connection_opts, :env, :electric, :replication_stream_id, :storage_dir]
 
   setup do
+    # From no configuration at all, whatever ran before.
+    Enum.each(@keys, &Application.delete_env(:electric_plug, &1))
     Node.reset_configuration()
 
     on_exit(fn ->

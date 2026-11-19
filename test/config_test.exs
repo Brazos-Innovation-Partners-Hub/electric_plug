@@ -6,10 +6,12 @@ defmodule ElectricPlug.ConfigTest do
   setup do
     Config.reset()
 
+    # Every key a test here sets: one left behind is the next module's configuration.
     on_exit(fn ->
       Config.reset()
-      Application.delete_env(:electric_plug, :mode)
-      Application.delete_env(:electric_plug, :repo)
+
+      for key <- [:mode, :repo, :env, :connection_opts],
+          do: Application.delete_env(:electric_plug, key)
     end)
   end
 
